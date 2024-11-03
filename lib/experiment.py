@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 class Experiment:
-    def __init__(self, exp_name, args=None, mode='train', exps_basedir='experiments', tensorboard_dir='tensorboard'):
+    def __init__(self, exp_name, args=None, mode='train', exps_basedir='/kaggle/working/LaneATT', tensorboard_dir='tensorboard'):
         self.name = exp_name
         self.exp_dirpath = os.path.join(exps_basedir, exp_name)
         self.models_dirpath = os.path.join(self.exp_dirpath, 'models')
