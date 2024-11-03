@@ -1,3 +1,4 @@
+import timm
 import math
 
 import cv2
@@ -12,16 +13,115 @@ from lib.focal_loss import FocalLoss
 
 from .resnet import resnet122 as resnet122_cifar
 from .matching import match_proposals_with_targets
+class SwinFeatureExtractor(nn.Module):
+    def __init__(self):
+        super(SwinFeatureExtractor, self).__init__()
+        self.model = timm.create_model("swin_base_patch4_window12_384", features_only=True, pretrained=True)
+        self.model = self.model.to('cuda')  # Move model to GPU
+
+    def forward(self, x):
+        features = self.model(x)
+        return features[-2]
+import torch.nn.functional as F
+class MultiHeadAttention(nn.Module):
+    def __init__(self, input_dim, num_heads):
+        super(MultiHeadAttention, self).__init__()
+        self.num_heads = num_heads
+        self.head_dim = input_dim // num_heads
+
+        assert self.head_dim * num_heads == input_dim, "input_dim must be divisible by num_heads"
+
+        self.W_q = nn.Linear(input_dim, input_dim)  # Query projection
+        self.W_k = nn.Linear(input_dim, input_dim)  # Key projection
+        self.W_v = nn.Linear(input_dim, input_dim)  # Value projection
+
+    def forward(self, x):
+        batch_size, seq_length, _ = x.size()
+
+        # Step 1: Linear projections
+        Q = self.W_q(x)  # (batch_size, seq_length, input_dim)
+        K = self.W_k(x)
+        V = self.W_v(x)
+
+        # Step 2: Reshape for multi-head attention
+        Q = Q.view(batch_size, seq_length, self.num_heads, self.head_dim).transpose(1, 2)  # (batch_size, num_heads, seq_length, head_dim)
+        K = K.view(batch_size, seq_length, self.num_heads, self.head_dim).transpose(1, 2)  # (batch_size, num_heads, seq_length, head_dim)
+        V = V.view(batch_size, seq_length, self.num_heads, self.head_dim).transpose(1, 2)  # (batch_size, num_heads, seq_length, head_dim)
+
+        # Step 3: Compute attention scores
+        attention_scores = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_dim ** 0.5)  # (batch_size, num_heads, seq_length, seq_length)
+
+        # Step 4: Apply softmax to get attention weights
+        attention_weights = F.softmax(attention_scores, dim=-1)  # (batch_size, num_heads, seq_length, seq_length)
+
+        # Step 5: Weighted sum of values
+        context = torch.matmul(attention_weights, V)  # (batch_size, num_heads, seq_length, head_dim)
+
+        # Step 6: Concatenate heads and pass through final linear layer
+        context = context.transpose(1, 2).contiguous().view(batch_size, seq_length, -1)  # (batch_size, seq_length, input_dim)
+
+        return context, attention_weights
 
 
+class FeedForward(nn.Module):
+    def __init__(self, input_dim, hidden_dim):
+        super(FeedForward, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, input_dim)
+
+    def forward(self, x):
+        return self.fc2(F.relu(self.fc1(x)))  # (batch_size, seq_length, input_dim)
+
+
+class TransformerBlock(nn.Module):
+    def __init__(self, input_dim, num_heads, hidden_dim):
+        super(TransformerBlock, self).__init__()
+        self.attention = MultiHeadAttention(input_dim, num_heads)
+        self.feed_forward = FeedForward(input_dim, hidden_dim)
+        self.norm1 = nn.LayerNorm(input_dim)
+        self.norm2 = nn.LayerNorm(input_dim)
+
+    def forward(self, x):
+        # Attention
+        attn_output, attn_weights = self.attention(x)
+        x = self.norm1(x + attn_output)  # Residual connection + Layer normalization
+
+        # Feedforward
+        ff_output = self.feed_forward(x)
+        x = self.norm2(x + ff_output)  # Residual connection + Layer normalization
+
+        return x, attn_weights  # Return both the output and attention weights
+
+
+class TransformerModel(nn.Module):
+    def __init__(self, input_dim, num_heads, hidden_dim, num_layers):
+        super(TransformerModel, self).__init__()
+        self.layers = nn.ModuleList([TransformerBlock(input_dim, num_heads, hidden_dim) for _ in range(num_layers)])
+
+    def forward(self, x):
+        # Store attention weights for each layer
+        attention_weights_list = []
+
+        for layer in self.layers:
+            x, attn_weights = layer(x)
+            attention_weights_list.append(attn_weights)
+
+        # Aggregate attention weights across heads (average or sum) and combine across layers
+        # Example: Use the attention weights from the last layer
+        final_attention_weights = attention_weights_list[-1]  # This has shape (batch_size, num_heads, seq_length, seq_length)
+
+        # Average across heads to get to (batch_size, seq_length, seq_length)
+        final_attention_weights = final_attention_weights.mean(dim=1)  # Shape: (batch_size, seq_length, seq_length)
+
+        return final_attention_weights
 class LaneATT(nn.Module):
     def __init__(self,
-                 backbone='resnet34',
+                 backbone='resnet18',
                  pretrained_backbone=True,
                  S=72,
                  img_w=640,
                  img_h=360,
-                 anchors_freq_path=None,
+                 anchors_freq_path='/kaggle/working/LaneATT/data/tusimple_anchors_freq.pt',
                  topk_anchors=None,
                  anchor_feat_channels=64):
         super(LaneATT, self).__init__()
@@ -44,16 +144,27 @@ class LaneATT(nn.Module):
 
         # Generate anchors
         self.anchors, self.anchors_cut = self.generate_anchors(lateral_n=72, bottom_n=128)
-
+        self.anchorsc,self.anchorsc_cut= self.generate_anchors1(lateral_n=72, bottom_n=128)
+        #print('This is self.anchors',self.anchors)
+        #print('This is self.anchors_cut',self.anchors_cut)
         # Filter masks if `anchors_freq_path` is provided
+        #print('This is anchors_freq_path',anchors_freq_path)
+        #print('This is topk_anchors',topk_anchors)
         if anchors_freq_path is not None:
-            anchors_mask = torch.load(anchors_freq_path).cpu()
+            anchors_mask = torch.load('/kaggle/working/LaneATT/data/tusimple_anchors_freq.pt').cpu()
             assert topk_anchors is not None
             ind = torch.argsort(anchors_mask, descending=True)[:topk_anchors]
             self.anchors = self.anchors[ind]
             self.anchors_cut = self.anchors_cut[ind]
-
-        # Pre compute indices for the anchor pooling
+            
+        if anchors_freq_path is not None:
+            anchors_mask = torch.load('/kaggle/working/LaneATT/data/tusimple_anchors_freq.pt').cpu()
+            assert topk_anchors is not None
+            ind = torch.argsort(anchors_mask, descending=True)[:topk_anchors]
+            self.anchorsc = self.anchorsc[ind]
+            self.anchorsc_cut = self.anchorsc_cut[ind]
+        self.anchors=torch.cat([self.anchors,self.anchorsc])
+        self.anchors_cut=torch.cat([self.anchors_cut,self.anchorsc_cut])
         self.cut_zs, self.cut_ys, self.cut_xs, self.invalid_mask = self.compute_anchor_cut_indices(
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
@@ -68,7 +179,13 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.reg_layer)
 
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
-        batch_features = self.feature_extractor(x)
+        batch_features = F.interpolate(x, size=(384, 384), mode='bilinear', align_corners=True)
+        model = SwinFeatureExtractor()
+        
+        batch_features=model(batch_features)
+        batch_features = batch_features.permute(0, 3, 1, 2)
+        batch_features = F.interpolate(batch_features, size=(12, 20), mode='bilinear', align_corners=True)
+
         batch_features = self.conv1(batch_features)
         batch_anchor_features = self.cut_anchor_features(batch_features)
 
@@ -76,13 +193,22 @@ class LaneATT(nn.Module):
         batch_anchor_features = batch_anchor_features.view(-1, self.anchor_feat_channels * self.fmap_h)
 
         # Add attention features
-        softmax = nn.Softmax(dim=1)
-        scores = self.attention_layer(batch_anchor_features)
-        attention = softmax(scores).reshape(x.shape[0], len(self.anchors), -1)
-        attention_matrix = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
-        non_diag_inds = torch.nonzero(attention_matrix == 0., as_tuple=False)
-        attention_matrix[:] = 0
-        attention_matrix[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
+        batch_size = x.shape[0]
+        num_proposals = len(self.anchors)
+        d_k = batch_anchor_features.shape[1]
+        batch_size = x.shape[0]
+        seq_length = len(self.anchors)
+        input_dim = batch_anchor_features.shape[1]
+        num_heads = 4
+        hidden_dim = 512
+        num_layers = 6
+
+
+        anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
+
+
+        transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
+        attention_matrix = transformer_model(anchor_features)
         batch_anchor_features = batch_anchor_features.reshape(x.shape[0], len(self.anchors), -1)
         attention_features = torch.bmm(torch.transpose(batch_anchor_features, 1, 2),
                                        torch.transpose(attention_matrix, 1, 2)).transpose(1, 2)
