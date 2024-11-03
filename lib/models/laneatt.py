@@ -163,8 +163,6 @@ class LaneATT(nn.Module):
             ind = torch.argsort(anchors_mask, descending=True)[:topk_anchors]
             self.anchorsc = self.anchorsc[ind]
             self.anchorsc_cut = self.anchorsc_cut[ind]
-        self.anchors=torch.cat([self.anchors,self.anchorsc])
-        self.anchors_cut=torch.cat([self.anchors_cut,self.anchorsc_cut])
         self.cut_zs, self.cut_ys, self.cut_xs, self.invalid_mask = self.compute_anchor_cut_indices(
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
