@@ -177,7 +177,13 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.reg_layer)
 
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
-        batch_features = self.feature_extractor(x)
+        batch_features = F.interpolate(x, size=(384, 384), mode='bilinear', align_corners=True)
+        model = SwinFeatureExtractor()
+        
+        batch_features=model(batch_features)
+        batch_features = batch_features.permute(0, 3, 1, 2)
+        batch_features = F.interpolate(batch_features, size=(12, 20), mode='bilinear', align_corners=True)
+
         batch_features = self.conv1(batch_features)
         batch_anchor_features = self.cut_anchor_features(batch_features)
 
