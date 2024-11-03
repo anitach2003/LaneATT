@@ -182,10 +182,11 @@ class LaneATT(nn.Module):
                 positive_starts = (positives[:, 2] * self.n_strips).round().long()
                 target_starts = (target[:, 2] * self.n_strips).round().long()
                 target[:, 4] -= positive_starts - target_starts
-                all_indices = torch.arange(num_positives, dtype=torch.long)
+                all_indices = torch.arange(num_positives, dtype=torch.long, device=invalid_offsets_mask.device)
                 ends = (positive_starts + target[:, 4] - 1).round().long()
+
                 invalid_offsets_mask = torch.zeros((num_positives, 1 + self.n_offsets + 1),
-                                                   dtype=torch.int)  # length + S + pad
+                                   dtype=torch.int, device=invalid_offsets_mask.device)  # length + S + pad
                 invalid_offsets_mask[all_indices, 1 + positive_starts] = 1
                 invalid_offsets_mask[all_indices, 1 + ends + 1] -= 1
                 invalid_offsets_mask = invalid_offsets_mask.cumsum(dim=1) == 0
@@ -207,29 +208,33 @@ class LaneATT(nn.Module):
 
     def compute_anchor_cut_indices(self, n_fmaps, fmaps_w, fmaps_h):
         # definitions
-        n_proposals = len(self.anchors_cut)
+            n_proposals = len(self.anchors_cut)
+            #print('This is self.anchors_cut in compute indices',self.anchors_cut)
+            # indexing
 
-        # indexing
-        unclamped_xs = torch.flip((self.anchors_cut[:, 5:] / self.stride).round().long(), dims=(1,))
-        unclamped_xs = unclamped_xs.unsqueeze(2)
-        unclamped_xs = torch.repeat_interleave(unclamped_xs, n_fmaps, dim=0).reshape(-1, 1)
-        cut_xs = torch.clamp(unclamped_xs, 0, fmaps_w - 1)
-        unclamped_xs = unclamped_xs.reshape(n_proposals, n_fmaps, fmaps_h, 1)
-        invalid_mask = (unclamped_xs < 0) | (unclamped_xs > fmaps_w)
-        cut_ys = torch.arange(0, fmaps_h)
-        cut_ys = cut_ys.repeat(n_fmaps * n_proposals)[:, None].reshape(n_proposals, n_fmaps, fmaps_h)
-        cut_ys = cut_ys.reshape(-1, 1)
-        cut_zs = torch.arange(n_fmaps).repeat_interleave(fmaps_h).repeat(n_proposals)[:, None]
+            unclamped_xs = torch.flip((self.anchors_cut[:, 5:] / self.stride).round().long(), dims=(1,))
+            unclamped_xs = unclamped_xs.unsqueeze(2)
+            unclamped_xs = torch.repeat_interleave(unclamped_xs, n_fmaps, dim=0).reshape(-1, 1)
+            cut_xs = torch.clamp(unclamped_xs, 0, fmaps_w - 1)
+            unclamped_xs = unclamped_xs.reshape(n_proposals, n_fmaps, fmaps_h, 1)
+            invalid_mask = (unclamped_xs < 0) | (unclamped_xs > fmaps_w)
+            cut_ys = torch.arange(0, fmaps_h)
+            cut_ys = cut_ys.repeat(n_fmaps * n_proposals)[:, None].reshape(n_proposals, n_fmaps, fmaps_h)
+            cut_ys = cut_ys.reshape(-1, 1)
+            cut_zs = torch.arange(n_fmaps).repeat_interleave(fmaps_h).repeat(n_proposals)[:, None]
 
-        return cut_zs, cut_ys, cut_xs, invalid_mask
+            return cut_zs, cut_ys, cut_xs, invalid_mask
 
     def cut_anchor_features(self, features):
         # definitions
         batch_size = features.shape[0]
+        #print('This is batch_size',batch_size)
         n_proposals = len(self.anchors)
+        #print('This is len(self.anchors) in cut features',len(self.anchors))
         n_fmaps = features.shape[1]
+        #print('This is n_fmaps in cut features',n_fmaps)
         batch_anchor_features = torch.zeros((batch_size, n_proposals, n_fmaps, self.fmap_h, 1), device=features.device)
-
+        #print('This is batch_anchor_features in cut features',batch_anchor_features.shape)
         # actual cutting
         for batch_idx, img_features in enumerate(features):
             rois = img_features[self.cut_zs, self.cut_ys, self.cut_xs].view(n_proposals, n_fmaps, self.fmap_h, 1)
@@ -240,12 +245,37 @@ class LaneATT(nn.Module):
 
     def generate_anchors(self, lateral_n, bottom_n):
         left_anchors, left_cut = self.generate_side_anchors(self.left_angles, x=0., nb_origins=lateral_n)
-        right_anchors, right_cut = self.generate_side_anchors(self.right_angles, x=1., nb_origins=lateral_n)
+        right_anchors, right_cut = self.generate_side_anchors(self.right_angles, x=1., nb_origins=lateral_n)        
         bottom_anchors, bottom_cut = self.generate_side_anchors(self.bottom_angles, y=1., nb_origins=bottom_n)
-
-        return torch.cat([left_anchors, bottom_anchors, right_anchors]), torch.cat([left_cut, bottom_cut, right_cut])
-
+        return torch.cat([left_anchors, bottom_anchors,right_anchors]), torch.cat([left_cut, bottom_cut, right_cut])
+        
+    def generate_anchors1(self, lateral_n, bottom_n):
+        leftc_anchors, leftc_cut = self.generate_side_anchors1(self.left_angles, x=0., nb_origins=lateral_n)
+        rightc_anchors, rightc_cut = self.generate_side_anchors1(self.right_angles, x=1., nb_origins=lateral_n)
+        bottomc_anchors, bottomc_cut = self.generate_side_anchors1(self.bottom_angles, y=1., nb_origins=bottom_n)
+        return torch.cat([leftc_anchors, bottomc_anchors,rightc_anchors]), torch.cat([leftc_cut, bottomc_cut, rightc_cut])
+        
     def generate_side_anchors(self, angles, nb_origins, x=None, y=None):
+        if x is None and y is not None:
+            starts = [(x, y) for x in np.linspace(1., 0., num=nb_origins)]
+        elif x is not None and y is None:
+            starts = [(x, y) for y in np.linspace(1., 0., num=nb_origins)]
+        else:
+            raise Exception('Please define exactly one of `x` or `y` (not neither nor both)')
+        n_anchors = nb_origins * len(angles)
+
+        # each row, first for x and second for y:
+        # 2 scores, 1 start_y, start_x, 1 lenght, S coordinates, score[0] = negative prob, score[1] = positive prob
+        anchors = torch.zeros((n_anchors, 2 + 2 + 1 + self.n_offsets))
+        anchors_cut = torch.zeros((n_anchors, 2 + 2 + 1 + self.fmap_h))
+        for i, start in enumerate(starts):
+            for j, angle in enumerate(angles):
+                k = i * len(angles) + j
+                anchors[k] = self.generate_anchor(start, angle)
+                anchors_cut[k] = self.generate_anchor(start, angle, cut=True)
+
+        return anchors, anchors_cut
+    def generate_side_anchors1(self, angles, nb_origins, x=None, y=None):
         if x is None and y is not None:
             starts = [(x, y) for x in np.linspace(1., 0., num=nb_origins)]
         elif x is not None and y is None:
@@ -262,11 +292,31 @@ class LaneATT(nn.Module):
         for i, start in enumerate(starts):
             for j, angle in enumerate(angles):
                 k = i * len(angles) + j
-                anchors[k] = self.generate_anchor(start, angle)
-                anchors_cut[k] = self.generate_anchor(start, angle, cut=True)
+                anchors[k] = self.generate_anchor1(start, angle)
+                anchors_cut[k] = self.generate_anchor1(start, angle, cut=True)
 
         return anchors, anchors_cut
-
+    def generate_anchor1(self, start, angle, cut=False):
+        if cut:
+            anchor_ys = self.anchor_cut_ys
+            anchor = torch.zeros(2 + 2 + 1 + self.fmap_h)
+        else:
+            anchor_ys = self.anchor_ys
+            anchor = torch.zeros(2 + 2 + 1 + self.n_offsets)
+        angle = angle * math.pi / 180.  # degrees to radians
+        start_x, start_y = start
+        anchor[2] = 1 - start_y
+        anchor[3] = start_x
+        x_coords = start_x + (1 - anchor_ys - 1 + start_y) / math.tan(angle)
+    
+    # Introduce a perturbation that increases along the y-axis to create gradual curvature to the left
+        scale = torch.linspace(0, 1, len(anchor_ys))
+        perturbation = 0.5 * scale * torch.sin(2 * anchor_ys)  # Adjust amplitude (0.01) and frequency (5) as needed
+        curved_ys = anchor_ys + perturbation
+    
+    # Calculate x-coordinates with the perturbed y-coordinates
+        anchor[5:] = (start_x + (1 - curved_ys - 1 + start_y) / math.tan(angle+25)) * self.img_w
+        return anchor
     def generate_anchor(self, start, angle, cut=False):
         if cut:
             anchor_ys = self.anchor_cut_ys
@@ -320,7 +370,7 @@ class LaneATT(nn.Module):
             # if the proposal does not start at the bottom of the image,
             # extend its proposal until the x is outside the image
             mask = ~((((lane_xs[:start] >= 0.) &
-                       (lane_xs[:start] <= 1.)).cpu().numpy()[::-1].cumprod()[::-1]).astype(np.bool))
+                       (lane_xs[:start] <= 1.)).cpu().numpy()[::-1].cumprod()[::-1]).astype(bool))
             lane_xs[end + 1:] = -2
             lane_xs[:start][mask] = -2
             lane_ys = self.anchor_ys[lane_xs >= 0]
@@ -388,6 +438,23 @@ def get_backbone(backbone, pretrained=False):
         stride = 32
     elif backbone == 'resnet18':
         backbone = torch.nn.Sequential(*list(resnet18(pretrained=pretrained).children())[:-2])
+        fmap_c = 512
+        stride = 32
+    else:
+        raise NotImplementedError('Backbone not implemented: `{}`'.format(backbone))
+
+    return backbone, fmap_c, stride
+def get_backbone1(backbone='resnet18', pretrained=False):
+    if backbone == 'resnet122':
+        backbone = resnet122_cifar()
+        fmap_c = 64
+        stride = 4
+    elif backbone == 'resnet34':
+        backbone = torch.nn.Sequential(*list(resnet34(pretrained=pretrained).children())[:-3])
+        fmap_c = 512
+        stride = 32
+    elif backbone == 'resnet18':
+        backbone = torch.nn.Sequential(*list(resnet18(pretrained=pretrained).children())[:-3])
         fmap_c = 512
         stride = 32
     else:
