@@ -214,7 +214,7 @@ class LaneATT(nn.Module):
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
         # Setup and initialize layers
-        self.conv1 = nn.Conv2d(256, self.anchor_feat_channels, kernel_size=1)
+        self.conv1 = nn.Conv2d(512, self.anchor_feat_channels, kernel_size=1)
         self.cls_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, 2)
         self.reg_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, self.n_offsets + 1)
         self.attention_layer = nn.Linear(self.anchor_feat_channels * self.fmap_h, len(self.anchors) - 1)
@@ -224,8 +224,9 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.reg_layer)
         self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
-        layer=self.resnet(x)
-        batch_features=layer[list(layer.keys())[-2]]
+        batch_features = self.feature_extractor(x)
+        bach=CBAM(512,512)
+        batch_features=bach(batch_features)
         batch_features = self.conv1(batch_features)
         batch_anchor_features = self.cut_anchor_features(batch_features)
 
