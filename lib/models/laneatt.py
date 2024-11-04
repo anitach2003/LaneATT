@@ -226,8 +226,6 @@ class LaneATT(nn.Module):
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         layer=self.resnet(x)
         batch_features=layer[list(layer.keys())[-2]]
-        A=CBAM(256,256).to('cuda')
-        batch_features=A(batch_features)
         batch_features = self.conv1(batch_features)
         batch_anchor_features = self.cut_anchor_features(batch_features)
 
