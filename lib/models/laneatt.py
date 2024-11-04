@@ -1,6 +1,6 @@
 import timm
 import math
-
+import torch.nn.functional as F
 import cv2
 import torch
 import numpy as np
@@ -22,7 +22,7 @@ class CAM(nn.Module):
             nn.Linear(in_features=self.channels, out_features=self.channels//self.r, bias=True),
             nn.ReLU(inplace=True),
             nn.Linear(in_features=self.channels//self.r, out_features=self.channels, bias=True))
-        self.initialize_layer(self.linear)
+
     def forward(self, x):
         max = F.adaptive_max_pool2d(x, output_size=1)
         avg = F.adaptive_avg_pool2d(x, output_size=1)
@@ -32,11 +32,7 @@ class CAM(nn.Module):
         output = linear_max + linear_avg
         output = F.sigmoid(output) * x
         return output
-    def initialize_layer(layer):
-        if isinstance(layer, (nn.Conv2d, nn.Linear)):
-            torch.nn.init.normal_(layer.weight, mean=0., std=0.001)
-            if layer.bias is not None:
-                torch.nn.init.constant_(layer.bias, 0)
+
 class SAM(nn.Module):
     def __init__(self, bias=False):
         super(SAM, self).__init__()
