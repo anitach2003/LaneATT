@@ -222,10 +222,10 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.conv1)
         self.initialize_layer(self.cls_layer)
         self.initialize_layer(self.reg_layer)
-        self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
+      #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         batch_features = self.feature_extractor(x)
-        bach=CBAM(512,512)
+        bach=CBAM(512,512).to('cuda')
         batch_features=bach(batch_features)
         batch_features = self.conv1(batch_features)
         batch_anchor_features = self.cut_anchor_features(batch_features)
