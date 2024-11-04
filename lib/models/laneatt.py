@@ -42,7 +42,7 @@ class SAM(nn.Module):
         super(SAM, self).__init__()
         self.bias = bias
         self.conv = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=7, stride=1, padding=3, dilation=1, bias=self.bias)
-        self.initialize_layer(self.conv)
+
     def forward(self, x):
         max = torch.max(x,1)[0].unsqueeze(1)
         avg = torch.mean(x,1).unsqueeze(1)
@@ -50,11 +50,7 @@ class SAM(nn.Module):
         output = self.conv(concat)
         output = F.sigmoid(output) * x 
         return output
-    def initialize_layer(layer):
-        if isinstance(layer, (nn.Conv2d, nn.Linear)):
-            torch.nn.init.normal_(layer.weight, mean=0., std=0.001)
-            if layer.bias is not None:
-                torch.nn.init.constant_(layer.bias, 0)
+
 
 class CBAM(nn.Module):
     def __init__(self, channels, r):
