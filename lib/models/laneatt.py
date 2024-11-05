@@ -10,7 +10,7 @@ from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from nms import nms
 from lib.lane import Lane
 from lib.focal_loss import FocalLoss
-
+from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from .resnet import resnet122 as resnet122_cifar
 from .matching import match_proposals_with_targets
 class WingLoss(nn.Module):
@@ -248,7 +248,7 @@ class LaneATT(nn.Module):
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
         # Setup and initialize layers
-        self.conv1 = nn.Conv2d(512, self.anchor_feat_channels, kernel_size=1)
+        self.conv1 = nn.Conv2d(256, self.anchor_feat_channels, kernel_size=1)
         self.cls_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, 2)
         self.reg_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, self.n_offsets + 1)
         self.attention_layer = nn.Linear(self.anchor_feat_channels * self.fmap_h, len(self.anchors) - 1)
@@ -258,8 +258,12 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.reg_layer)
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
-        batch_features = self.feature_extractor(x)
-        bach=CBAM(512,512).to('cuda')
+        resnet18_fpn = resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
+        #batch_features = self.feature_extractor(x)
+        output = resnet18_fpn(input_tensor)
+
+        batch_features = output[list(output.keys())[-2]]
+        bach=CBAM(256,256).to('cuda')
         batch_features=bach(batch_features)
         batch_features = self.conv1(batch_features)
         batch_anchor_features = self.cut_anchor_features(batch_features)
