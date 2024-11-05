@@ -13,6 +13,24 @@ from lib.focal_loss import FocalLoss
 
 from .resnet import resnet122 as resnet122_cifar
 from .matching import match_proposals_with_targets
+class WingLoss(nn.Module):
+    def __init__(self, w=1.0, epsilon=1.0):
+        super(WingLoss, self).__init__()
+        self.w = w
+        self.epsilon = epsilon
+
+    def forward(self, inputs, targets):
+        error = inputs - targets
+        abs_error = torch.abs(error)
+
+        # Compute Wing Loss
+        loss = torch.where(
+            abs_error < self.w,
+            self.w * torch.log(1 + abs_error / self.epsilon),
+            abs_error - (self.w * torch.log(1 + self.w / self.epsilon))
+        )
+        
+        return loss.mean()
 class CAM(nn.Module):
     def __init__(self, channels, r):
         super(CAM, self).__init__()
@@ -361,9 +379,9 @@ class LaneATT(nn.Module):
                 invalid_offsets_mask[:, 0] = False
                 reg_target = target[:, 4:]
                 reg_target[invalid_offsets_mask] = reg_pred[invalid_offsets_mask]
-
+            print(reg_pred.shape)
             # Loss calc
-            reg_loss += smooth_l1_loss(reg_pred, reg_target)
+            reg_loss += WingLoss(reg_pred, reg_target)
             cls_loss += focal_loss(cls_pred, cls_target).sum() / num_positives
 
         # Batch mean
