@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm, trange
 import requests
 import os
-def zip_file_in_parts(file_path, part_size_mb=99):
+def zip_file_in_parts(file_path, part_size_mb=49):
     # Define the size in bytes for the part size (49 MB)
     part_size = part_size_mb * 1024 * 1024  # Convert MB to Bytes
     base_name = os.path.splitext(file_path)[0]
@@ -37,7 +37,7 @@ def zip_file_in_parts(file_path, part_size_mb=99):
                 # Write the chunk to the zip file
                 zip_file.writestr(os.path.basename(file_path), chunk)
                 current_size += len(chunk)  # Update the current size
-file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_001.pt'
+file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001.pt'
 
 # Check if file exists
 
