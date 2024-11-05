@@ -14,23 +14,39 @@ from lib.focal_loss import FocalLoss
 from .resnet import resnet122 as resnet122_cifar
 from .matching import match_proposals_with_targets
 class WingLoss(nn.Module):
-    def __init__(self, w=1.0, epsilon=1.0):
-        super(WingLoss, self).__init__()
-        self.w = w
+    def __init__(self, omega=14, theta=0.5, epsilon=1, alpha=2.1):
+        super(AdaptiveWingLoss, self).__init__()
+        self.omega = omega
+        self.theta = theta
         self.epsilon = epsilon
+        self.alpha = alpha
 
-    def forward(self, inputs, targets):
-        error = inputs - targets
-        abs_error = torch.abs(error)
+    def forward(self, pred, target):
+        '''
+        :param pred: BxH
+        :param target: BxH
+        :return:
+        '''
+        y = target
+        y_hat = pred
+        delta_y = (y - y_hat).abs()
+        delta_y1 = delta_y[delta_y < self.theta]
+        delta_y2 = delta_y[delta_y >= self.theta]
+        y1 = y[delta_y < self.theta]
+        y2 = y[delta_y >= self.theta]
 
-        # Compute Wing Loss
-        loss = torch.where(
-            abs_error < self.w,
-            self.w * torch.log(1 + abs_error / self.epsilon),
-            abs_error - (self.w * torch.log(1 + self.w / self.epsilon))
-        )
+        loss1 = self.omega * torch.log(1 + torch.pow(delta_y1 / self.omega, self.alpha - y1))
         
-        return loss.mean()
+        # Calculate components for loss2
+        A = self.omega * (1 / (1 + torch.pow(self.theta / self.epsilon, self.alpha - y2))) * (self.alpha - y2) * \
+            (torch.pow(self.theta / self.epsilon, self.alpha - y2 - 1)) * (1 / self.epsilon)
+        C = self.theta * A - self.omega * torch.log(1 + torch.pow(self.theta / self.epsilon, self.alpha - y2))
+        
+        loss2 = A * delta_y2 - C
+        
+        # Return average loss
+        total_loss = (loss1.sum() + loss2.sum()) / (len(loss1) + len(loss2)) if (len(loss1) + len(loss2)) > 0 else torch.tensor(0.0, device=pred.device)
+        return total_loss
 class CAM(nn.Module):
     def __init__(self, channels, r):
         super(CAM, self).__init__()
