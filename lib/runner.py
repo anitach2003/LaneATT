@@ -8,6 +8,7 @@ import numpy as np
 from tqdm import tqdm, trange
 import requests
 import os
+import zipfile
 def zip_file_in_parts(file_path, part_size_mb=49):
     # Define the size in bytes for the part size (49 MB)
     part_size = part_size_mb * 1024 * 1024  # Convert MB to Bytes
