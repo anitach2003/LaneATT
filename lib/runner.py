@@ -6,6 +6,36 @@ import cv2
 import torch
 import numpy as np
 from tqdm import tqdm, trange
+import requests
+import os
+
+file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_001.pt'
+
+# Check if file exists
+
+
+# Replace these with your bot token and chat ID
+BOT_TOKEN = '7651391280:AAEqT4XRPZZTQNjyQvx_2FzRUNKDdc387BU'
+CHAT_ID = '-134642039'
+FILE_PATH = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_001.pt'  # Replace with the path to the file you want to send
+
+def send_file_to_telegram(bot_token, chat_id, file_path):
+    url = f'https://api.telegram.org/bot{bot_token}/sendDocument'
+    with open(file_path, 'rb') as file:
+        response = requests.post(
+            url,
+            data={'chat_id': chat_id},
+            files={'document': file}
+        )
+    
+    # Check the response
+    if response.status_code == 200:
+        print("File sent successfully!")
+    else:
+        print("Failed to send file:", response.text)
+
+# Run the function
+
 
 
 class Runner:
@@ -66,8 +96,11 @@ class Runner:
                 postfix_dict['loss'] = loss.item()
                 pbar.set_postfix(ordered_dict=postfix_dict)
             self.exp.epoch_end_callback(epoch, max_epochs, model, optimizer, scheduler)
-
-            # Validate
+            
+            if os.path.exists(file_path):
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, FILE_PATH)
+            else:
+                print("File does not exist.")# Validate
             if (epoch + 1) % self.cfg['val_every'] == 0:
                 self.eval(epoch, on_val=True)
         self.exp.train_end_callback()
