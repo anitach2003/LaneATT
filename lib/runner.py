@@ -8,7 +8,35 @@ import numpy as np
 from tqdm import tqdm, trange
 import requests
 import os
+def zip_file_in_parts(file_path, part_size_mb=99):
+    # Define the size in bytes for the part size (49 MB)
+    part_size = part_size_mb * 1024 * 1024  # Convert MB to Bytes
+    base_name = os.path.splitext(file_path)[0]
+    file_number = 1
 
+    # Create a zip file for writing
+    with zipfile.ZipFile(f'{base_name}_part{file_number}.zip', 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        current_size = 0
+
+        # Open the original file for reading in binary mode
+        with open(file_path, 'rb') as original_file:
+            while True:
+                # Read the data chunk
+                chunk = original_file.read(part_size)
+                if not chunk:  # If there is no data left to read, break
+                    break
+                
+                # Check if adding this chunk would exceed the part size
+                if current_size + len(chunk) > part_size:
+                    # If yes, close the current zip file and start a new one
+                    zip_file.close()
+                    file_number += 1
+                    zip_file = zipfile.ZipFile(f'{base_name}_part{file_number}.zip', 'w', zipfile.ZIP_DEFLATED)
+                    current_size = 0  # Reset current size
+                
+                # Write the chunk to the zip file
+                zip_file.writestr(os.path.basename(file_path), chunk)
+                current_size += len(chunk)  # Update the current size
 file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_001.pt'
 
 # Check if file exists
@@ -17,7 +45,7 @@ file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_001.pt'
 # Replace these with your bot token and chat ID
 BOT_TOKEN = '7651391280:AAEqT4XRPZZTQNjyQvx_2FzRUNKDdc387BU'
 CHAT_ID = '-134642039'
-FILE_PATH = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_001.pt'  # Replace with the path to the file you want to send
+  # Replace with the path to the file you want to send
 
 def send_file_to_telegram(bot_token, chat_id, file_path):
     url = f'https://api.telegram.org/bot{bot_token}/sendDocument'
@@ -98,7 +126,10 @@ class Runner:
             self.exp.epoch_end_callback(epoch, max_epochs, model, optimizer, scheduler)
             
             if os.path.exists(file_path):
-                send_file_to_telegram(BOT_TOKEN, CHAT_ID, FILE_PATH)
+                zip_file_in_parts(file_path)
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001_part1.zip')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001_part2.zip')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001_part3.zip')
             else:
                 print("File does not exist.")# Validate
             if (epoch + 1) % self.cfg['val_every'] == 0:
