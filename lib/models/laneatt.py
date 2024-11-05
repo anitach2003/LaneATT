@@ -338,7 +338,7 @@ class LaneATT(nn.Module):
 
     def loss(self, proposals_list, targets, cls_loss_weight=10):
         focal_loss = FocalLoss(alpha=0.25, gamma=2.)
-        smooth_l1_loss = WingLoss()
+        smooth_l1_loss = WingLoss(omega=14, theta=0.5, epsilon=1, alpha=2.1)
         cls_loss = 0
         reg_loss = 0
         valid_imgs = len(targets)
@@ -395,9 +395,10 @@ class LaneATT(nn.Module):
                 invalid_offsets_mask[:, 0] = False
                 reg_target = target[:, 4:]
                 reg_target[invalid_offsets_mask] = reg_pred[invalid_offsets_mask]
-            print(reg_pred.shape)
+            
             # Loss calc
             reg_loss += smooth_l1_loss(reg_pred, reg_target)
+            print(smooth_l1_loss(reg_pred, reg_target))
             cls_loss += focal_loss(cls_pred, cls_target).sum() / num_positives
 
         # Batch mean
