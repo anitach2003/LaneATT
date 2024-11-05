@@ -260,7 +260,7 @@ class LaneATT(nn.Module):
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         resnet18_fpn = resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
         #batch_features = self.feature_extractor(x)
-        output = resnet18_fpn(input_tensor)
+        output = resnet18_fpn(x)
 
         batch_features = output[list(output.keys())[-2]]
         bach=CBAM(256,256).to('cuda')
