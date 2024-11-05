@@ -338,7 +338,7 @@ class LaneATT(nn.Module):
 
     def loss(self, proposals_list, targets, cls_loss_weight=10):
         focal_loss = FocalLoss(alpha=0.25, gamma=2.)
-        smooth_l1_loss = WingLoss(omega=14, theta=0.5, epsilon=1, alpha=2.1)
+        smooth_l1_loss = nn.SmoothL1Loss()
         cls_loss = 0
         reg_loss = 0
         valid_imgs = len(targets)
