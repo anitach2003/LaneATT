@@ -38,7 +38,7 @@ def zip_file_in_parts(file_path, part_size_mb=49):
                 # Write the chunk to the zip file
                 zip_file.writestr(os.path.basename(file_path), chunk)
                 current_size += len(chunk)  # Update the current size
-file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001.pt'
+file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0100.pt'
 
 # Check if file exists
 
@@ -128,9 +128,9 @@ class Runner:
             
             if os.path.exists(file_path):
                 zip_file_in_parts(file_path)
-                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001_part1.zip')
-                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001_part2.zip')
-                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001_part3.zip')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0100_part1.zip')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0100_part2.zip')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0100_part3.zip')
             else:
                 print("File does not exist.")# Validate
             if (epoch + 1) % self.cfg['val_every'] == 0:
