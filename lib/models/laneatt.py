@@ -398,7 +398,6 @@ class LaneATT(nn.Module):
             
             # Loss calc
             reg_loss += smooth_l1_loss(reg_pred, reg_target)
-            print(smooth_l1_loss(reg_pred, reg_target))
             cls_loss += focal_loss(cls_pred, cls_target).sum() / num_positives
 
         # Batch mean
