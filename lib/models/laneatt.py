@@ -98,11 +98,12 @@ class SwinFeatureExtractor(nn.Module):
     def __init__(self):
         super(SwinFeatureExtractor, self).__init__()
         self.model = timm.create_model("swin_base_patch4_window12_384", features_only=True, pretrained=True)
-        self.model = self.model.to('cuda')  # Move model to GPU
+        self.model = self.model # Move model to GPU
 
     def forward(self, x):
         features = self.model(x)
-        return features[-2]
+        feat2 = features[-1].permute(0, 3, 1, 2)
+        return feat2
 import torch.nn.functional as F
 class MultiHeadAttention(nn.Module):
     def __init__(self, input_dim, num_heads):
@@ -200,8 +201,8 @@ class LaneATT(nn.Module):
                  backbone='resnet18',
                  pretrained_backbone=True,
                  S=72,
-                 img_w=640,
-                 img_h=360,
+                 img_w=384,
+                 img_h=384,
                  anchors_freq_path='/kaggle/working/LaneATT/data/tusimple_anchors_freq.pt',
                  topk_anchors=None,
                  anchor_feat_channels=64):
@@ -211,8 +212,8 @@ class LaneATT(nn.Module):
         self.img_w = img_w
         self.n_strips = S - 1
         self.n_offsets = S
-        self.fmap_h = img_h // self.stride
-        fmap_w = img_w // self.stride
+        self.fmap_h = 12
+        fmap_w = 12
         self.fmap_w = fmap_w
         self.anchor_ys = torch.linspace(1, 0, steps=self.n_offsets, dtype=torch.float32)
         self.anchor_cut_ys = torch.linspace(1, 0, steps=self.fmap_h, dtype=torch.float32)
@@ -248,7 +249,7 @@ class LaneATT(nn.Module):
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
         # Setup and initialize layers
-        self.conv1 = nn.Conv2d(backbone_nb_channels, self.anchor_feat_channels, kernel_size=1)
+        self.conv1 = nn.Conv2d(1024, self.anchor_feat_channels, kernel_size=1)
         self.cls_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, 2)
         self.reg_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, self.n_offsets + 1)
         self.attention_layer = nn.Linear(self.anchor_feat_channels * self.fmap_h, len(self.anchors) - 1)
@@ -258,7 +259,10 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.reg_layer)
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
-        batch_features = self.feature_extractor(x)
+
+        model = SwinFeatureExtractor()
+        batch_features=model(x)
+
        # bach=CBAM(512,512).to('cuda')
        # batch_features=bach(batch_features)
         batch_features = self.conv1(batch_features)
