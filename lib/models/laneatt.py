@@ -13,6 +13,7 @@ from lib.focal_loss import FocalLoss
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from .resnet import resnet122 as resnet122_cifar
 from .matching import match_proposals_with_targets
+from .conv import CSPStage
 class WingLoss(nn.Module):
     def __init__(self, omega=14, theta=0.5, epsilon=1, alpha=2.1):
         super(WingLoss, self).__init__()
@@ -259,8 +260,10 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.reg_layer)
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
+        
         batch_features = self.feature_extractor(x)
-        batch_features = self.conv1(batch_features)
+        A=CSPStage(512,64,4,spp=True).to('cuda')
+        batch_features=A(batch_features)
         #model = SwinFeatureExtractor()
        # batch_features=model(x)
 
