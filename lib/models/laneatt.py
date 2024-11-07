@@ -279,9 +279,9 @@ class LaneATT(nn.Module):
         batch_size = x.shape[0]
         seq_length = len(self.anchors)
         input_dim = batch_anchor_features.shape[1]
-        num_heads = 6
+        num_heads = 4
         hidden_dim = 512
-        num_layers = 8
+        num_layers = 6
 
 
         anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
