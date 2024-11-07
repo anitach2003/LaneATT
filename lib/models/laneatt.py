@@ -249,7 +249,7 @@ class LaneATT(nn.Module):
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
         # Setup and initialize layers
-        self.conv1 = nn.Conv2d(1024, self.anchor_feat_channels, kernel_size=1)
+        self.conv1 = nn.Conv2d(512, self.anchor_feat_channels, kernel_size=1)
         self.cls_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, 2)
         self.reg_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, self.n_offsets + 1)
         self.attention_layer = nn.Linear(self.anchor_feat_channels * self.fmap_h, len(self.anchors) - 1)
@@ -259,13 +259,14 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.reg_layer)
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
-
-        model = SwinFeatureExtractor()
-        batch_features=model(x)
+        batch_features = self.feature_extractor(x)
+        batch_features = self.conv1(batch_features)
+        #model = SwinFeatureExtractor()
+       # batch_features=model(x)
 
        # bach=CBAM(512,512).to('cuda')
        # batch_features=bach(batch_features)
-        batch_features = self.conv1(batch_features)
+        
         batch_anchor_features = self.cut_anchor_features(batch_features)
 
         # Join proposals from all images into a single proposals features batch
@@ -278,9 +279,9 @@ class LaneATT(nn.Module):
         batch_size = x.shape[0]
         seq_length = len(self.anchors)
         input_dim = batch_anchor_features.shape[1]
-        num_heads = 4
+        num_heads = 6
         hidden_dim = 512
-        num_layers = 6
+        num_layers = 8
 
 
         anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
