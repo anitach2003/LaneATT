@@ -198,12 +198,12 @@ class TransformerModel(nn.Module):
         return final_attention_weights
 class LaneATT(nn.Module):
     def __init__(self,
-                 backbone='resnet18',
+                 backbone='resnet34',
                  pretrained_backbone=True,
                  S=72,
-                 img_w=384,
-                 img_h=384,
-                 anchors_freq_path='/kaggle/working/LaneATT/data/tusimple_anchors_freq.pt',
+                 img_w=640,
+                 img_h=360,
+                 anchors_freq_path=None,
                  topk_anchors=None,
                  anchor_feat_channels=64):
         super(LaneATT, self).__init__()
@@ -212,8 +212,8 @@ class LaneATT(nn.Module):
         self.img_w = img_w
         self.n_strips = S - 1
         self.n_offsets = S
-        self.fmap_h = 12
-        fmap_w = 12
+        self.fmap_h = img_h // self.stride
+        fmap_w = img_w // self.stride
         self.fmap_w = fmap_w
         self.anchor_ys = torch.linspace(1, 0, steps=self.n_offsets, dtype=torch.float32)
         self.anchor_cut_ys = torch.linspace(1, 0, steps=self.fmap_h, dtype=torch.float32)
