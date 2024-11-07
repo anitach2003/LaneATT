@@ -42,106 +42,6 @@ class Conv(nn.Module):
         """Perform transposed convolution of 2D data."""
         return self.act(self.conv(x))
 
-
-class Conv2(Conv):
-    """Simplified RepConv module with Conv fusing."""
-
-    def __init__(self, c1, c2, k=3, s=1, p=None, g=1, d=1, act=True):
-        """Initialize Conv layer with given arguments including activation."""
-        super().__init__(c1, c2, k, s, p, g=g, d=d, act=act)
-        self.cv2 = nn.Conv2d(c1, c2, 1, s, autopad(1, p, d), groups=g, dilation=d, bias=False)  # add 1x1 conv
-
-    def forward(self, x):
-        """Apply convolution, batch normalization and activation to input tensor."""
-        return self.act(self.bn(self.conv(x) + self.cv2(x)))
-
-    def fuse_convs(self):
-        """Fuse parallel convolutions."""
-        w = torch.zeros_like(self.conv.weight.data)
-        i = [x // 2 for x in w.shape[2:]]
-        w[:, :, i[0] - 1:i[0], i[1] - 1:i[1]] = self.cv2.weight.data.clone()
-        self.conv.weight.data += w
-        self.__delattr__('cv2')
-
-
-class LightConv(nn.Module):
-    """Light convolution with args(ch_in, ch_out, kernel).
-    https://github.com/PaddlePaddle/PaddleDetection/blob/develop/ppdet/modeling/backbones/hgnet_v2.py
-    """
-
-    def __init__(self, c1, c2, k=1, act=nn.ReLU()):
-        """Initialize Conv layer with given arguments including activation."""
-        super().__init__()
-        self.conv1 = Conv(c1, c2, 1, act=False)
-        self.conv2 = DWConv(c2, c2, k, act=act)
-
-    def forward(self, x):
-        """Apply 2 convolutions to input tensor."""
-        return self.conv2(self.conv1(x))
-
-
-class DWConv(Conv):
-    """Depth-wise convolution."""
-
-    def __init__(self, c1, c2, k=1, s=1, d=1, act=True):  # ch_in, ch_out, kernel, stride, dilation, activation
-        super().__init__(c1, c2, k, s, g=math.gcd(c1, c2), d=d, act=act)
-
-
-class DWConvTranspose2d(nn.ConvTranspose2d):
-    """Depth-wise transpose convolution."""
-
-    def __init__(self, c1, c2, k=1, s=1, p1=0, p2=0):  # ch_in, ch_out, kernel, stride, padding, padding_out
-        super().__init__(c1, c2, k, s, p1, p2, groups=math.gcd(c1, c2))
-
-
-class ConvTranspose(nn.Module):
-    """Convolution transpose 2d layer."""
-    default_act = nn.SiLU()  # default activation
-
-    def __init__(self, c1, c2, k=2, s=2, p=0, bn=True, act=True):
-        """Initialize ConvTranspose2d layer with batch normalization and activation function."""
-        super().__init__()
-        self.conv_transpose = nn.ConvTranspose2d(c1, c2, k, s, p, bias=not bn)
-        self.bn = nn.BatchNorm2d(c2) if bn else nn.Identity()
-        self.act = self.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
-
-    def forward(self, x):
-        """Applies transposed convolutions, batch normalization and activation to input."""
-        return self.act(self.bn(self.conv_transpose(x)))
-
-    def forward_fuse(self, x):
-        """Applies activation and convolution transpose operation to input."""
-        return self.act(self.conv_transpose(x))
-
-
-class Focus(nn.Module):
-    """Focus wh information into c-space."""
-
-    def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):  # ch_in, ch_out, kernel, stride, padding, groups
-        super().__init__()
-        self.conv = Conv(c1 * 4, c2, k, s, p, g, act=act)
-        # self.contract = Contract(gain=2)
-
-    def forward(self, x):  # x(b,c,w,h) -> y(b,4c,w/2,h/2)
-        return self.conv(torch.cat((x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]), 1))
-        # return self.conv(self.contract(x))
-
-
-class GhostConv(nn.Module):
-    """Ghost Convolution https://github.com/huawei-noah/ghostnet."""
-
-    def __init__(self, c1, c2, k=1, s=1, g=1, act=True):  # ch_in, ch_out, kernel, stride, groups
-        super().__init__()
-        c_ = c2 // 2  # hidden channels
-        self.cv1 = Conv(c1, c_, k, s, None, g, act=act)
-        self.cv2 = Conv(c_, c_, 5, 1, None, c_, act=act)
-
-    def forward(self, x):
-        """Forward propagation through a Ghost Bottleneck layer with skip connection."""
-        y = self.cv1(x)
-        return torch.cat((y, self.cv2(y)), 1)
-
-
 class RepConv(nn.Module):
     """RepConv is a basic rep-style block, including training and deploy status
     This code is based on https://github.com/DingXiaoH/RepVGG/blob/main/repvgg.py
@@ -242,49 +142,6 @@ class RepConv(nn.Module):
         if hasattr(self, 'id_tensor'):
             self.__delattr__('id_tensor')
 
-
-class ChannelAttention(nn.Module):
-    """Channel-attention module https://github.com/open-mmlab/mmdetection/tree/v3.0.0rc1/configs/rtmdet."""
-
-    def __init__(self, channels: int) -> None:
-        super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Conv2d(channels, channels, 1, 1, 0, bias=True)
-        self.act = nn.Sigmoid()
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return x * self.act(self.fc(self.pool(x)))
-
-
-class SpatialAttention(nn.Module):
-    """Spatial-attention module."""
-
-    def __init__(self, kernel_size=7):
-        """Initialize Spatial-attention module with kernel size argument."""
-        super().__init__()
-        assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
-        padding = 3 if kernel_size == 7 else 1
-        self.cv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
-        self.act = nn.Sigmoid()
-
-    def forward(self, x):
-        """Apply channel and spatial attention on input for feature recalibration."""
-        return x * self.act(self.cv1(torch.cat([torch.mean(x, 1, keepdim=True), torch.max(x, 1, keepdim=True)[0]], 1)))
-
-
-class CBAM(nn.Module):
-    """Convolutional Block Attention Module."""
-
-    def __init__(self, c1, kernel_size=7):  # ch_in, kernels
-        super().__init__()
-        self.channel_attention = ChannelAttention(c1)
-        self.spatial_attention = SpatialAttention(kernel_size)
-
-    def forward(self, x):
-        """Applies the forward pass through C1 module."""
-        return self.spatial_attention(self.channel_attention(x))
-
-
 class Concat(nn.Module):
     """Concatenate a list of tensors along dimension."""
 
@@ -296,3 +153,196 @@ class Concat(nn.Module):
     def forward(self, x):
         """Forward pass for the YOLOv8 mask Proto module."""
         return torch.cat(x, self.d)
+def get_activation(name='silu', inplace=True):
+    if name is None:
+        return nn.Identity()
+
+    if isinstance(name, str):
+        if name == 'silu':
+            module = nn.SiLU(inplace=inplace)
+        elif name == 'relu':
+            module = nn.ReLU(inplace=inplace)
+        elif name == 'lrelu':
+            module = nn.LeakyReLU(0.1, inplace=inplace)
+        elif name == 'swish':
+            module = Swish(inplace=inplace)
+        elif name == 'hardsigmoid':
+            module = nn.Hardsigmoid(inplace=inplace)
+        elif name == 'identity':
+            module = nn.Identity()
+        else:
+            raise AttributeError('Unsupported act type: {}'.format(name))
+        return module
+
+    elif isinstance(name, nn.Module):
+        return name
+
+    else:
+        raise AttributeError('Unsupported act type: {}'.format(name))
+
+
+def get_norm(name, out_channels, inplace=True):
+    if name == 'bn':
+        module = nn.BatchNorm2d(out_channels)
+    else:
+        raise NotImplementedError
+    return module
+
+
+__all__ = [
+    'DFL', 'HGBlock', 'HGStem', 'SPP', 'SPPF', 'C1', 'C2', 'C3', 'C2f', 'C3x', 'C3TR', 'C3Ghost', 'GhostBottleneck',
+    'Bottleneck', 'BottleneckCSP', 'Proto', 'RepC3','se_block','cbam_block','eca_block','CA_Block','BiLevelRoutingAttention','CSPStage']
+
+import torch
+import torch.nn as nn
+import math
+class ConvBNAct(nn.Module):
+    """A Conv2d -> Batchnorm -> silu/leaky relu block"""
+
+    def __init__(
+            self,
+            in_channels,
+            out_channels,
+            ksize,
+            stride=1,
+            groups=1,
+            bias=False,
+            act='silu',
+            norm='bn',
+            reparam=False,
+    ):
+        super().__init__()
+        # same padding
+        pad = (ksize - 1) // 2
+        self.conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=ksize,
+            stride=stride,
+            padding=pad,
+            groups=groups,
+            bias=bias,
+        )
+        if norm is not None:
+            self.bn = get_norm(norm, out_channels, inplace=True)
+        if act is not None:
+            self.act = get_activation(act, inplace=True)
+        self.with_norm = norm is not None
+        self.with_act = act is not None
+
+    def forward(self, x):
+        x = self.conv(x)
+        if self.with_norm:
+            x = self.bn(x)
+        if self.with_act:
+            x = self.act(x)
+        return x
+
+    def fuseforward(self, x):
+        return self.act(self.conv(x))
+
+
+class BasicBlock_3x3_Reverse(nn.Module):
+    def __init__(self,
+                 ch_in,
+                 ch_hidden_ratio,
+                 ch_out,
+                 act='relu',
+                 shortcut=True):
+        super(BasicBlock_3x3_Reverse, self).__init__()
+        assert ch_in == ch_out
+        ch_hidden = int(ch_in * ch_hidden_ratio)
+        self.conv1 = ConvBNAct(ch_hidden, ch_out, 3, stride=1, act=act)
+        self.conv2 = RepConv(ch_in, ch_hidden, 3, s=1,act=act)
+        self.shortcut = shortcut
+
+    def forward(self, x):
+        y = self.conv2(x)
+        y = self.conv1(y)
+        if self.shortcut:
+            return x + y
+        else:
+            return y
+
+
+class SPP(nn.Module):
+    def __init__(
+            self,
+            ch_in,
+            ch_out,
+            k,
+            pool_size,
+            act='swish',
+    ):
+        super(SPP, self).__init__()
+        self.pool = []
+        for i, size in enumerate(pool_size):
+            pool = nn.MaxPool2d(kernel_size=size,
+                                stride=1,
+                                padding=size // 2,
+                                ceil_mode=False)
+            self.add_module('pool{}'.format(i), pool)
+            self.pool.append(pool)
+        self.conv = ConvBNAct(ch_in, ch_out, k, act=act)
+
+    def forward(self, x):
+        outs = [x]
+
+        for pool in self.pool:
+            outs.append(pool(x))
+        y = torch.cat(outs, axis=1)
+
+        y = self.conv(y)
+        return y
+
+
+class CSPStage(nn.Module):
+    def __init__(self,
+                 ch_in,
+                 ch_out,
+                 n,
+                 block_fn='BasicBlock_3x3_Reverse',
+                 ch_hidden_ratio=1.0,
+                 act='silu',
+                 spp=False):
+        super(CSPStage, self).__init__()
+
+        split_ratio = 2
+        ch_first = int(ch_out // split_ratio)
+        ch_mid = int(ch_out - ch_first)
+        self.conv1 = ConvBNAct(ch_in, ch_first, 1, act=act)
+        self.conv2 = ConvBNAct(ch_in, ch_mid, 1, act=act)
+        self.convs = nn.Sequential()
+
+        next_ch_in = ch_mid
+        for i in range(n):
+            if block_fn == 'BasicBlock_3x3_Reverse':
+                self.convs.add_module(
+                    str(i),
+                    BasicBlock_3x3_Reverse(next_ch_in,
+                                           ch_hidden_ratio,
+                                           ch_mid,
+                                           act=act,
+                                           shortcut=True))
+            else:
+                raise NotImplementedError
+            if i == (n - 1) // 2 and spp:
+                self.convs.add_module(
+                    'spp', SPP(ch_mid * 4, ch_mid, 1, [5, 9, 13], act=act))
+            next_ch_in = ch_mid
+        self.conv3 = ConvBNAct(192 , ch_out, 1, act=act)
+
+    def forward(self, x):
+        y1 = self.conv1(x)
+        y2 = self.conv2(x)
+
+        mid_out = [y1]
+        for conv in self.convs:
+            y2 = conv(y2)
+            mid_out.append(y2)
+
+        y = torch.cat(mid_out, axis=1)
+        print(x.shape)
+        y = self.conv3(y)
+        
+        return y
