@@ -98,7 +98,7 @@ class SwinFeatureExtractor(nn.Module):
     def __init__(self):
         super(SwinFeatureExtractor, self).__init__()
         self.model = timm.create_model("swin_base_patch4_window12_384", features_only=True, pretrained=True)
-        self.model = self.model # Move model to GPU
+        self.model = self.model.to('cuda')  # Move model to GPU
 
     def forward(self, x):
         features = self.model(x)
