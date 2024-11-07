@@ -270,6 +270,7 @@ class LaneDataset(Dataset):
     def __getitem__(self, idx):
         item = self.dataset[idx]
         img_org = cv2.imread(item['path'])
+        img_org = cv2.cvtColor(img_org, cv2.COLOR_BGR2RGB) 
         line_strings_org = self.lane_to_linestrings(item['old_anno']['lanes'])
         line_strings_org = LineStringsOnImage(line_strings_org, shape=img_org.shape)
         for i in range(30):
