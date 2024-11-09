@@ -53,63 +53,8 @@ def line_iou(pred, target, img_w, length=15, aligned=True):
 def liou_loss(pred, target, img_w, length=15):
     return (1 - line_iou(pred, target, img_w, length)).mean()
 
-import torch
-
-def calc_lane_width(pred, target, lane_width=7.5 / 800, img_h=320, img_w=1640, max_dx=1e4):
-    """
-    Calculate the LaneIoU value between predictions and targets.
-    Args:
-        pred: lane predictions, shape: (Nl, Nr), relative coordinate.
-        target: ground truth, shape: (Nl, Nr), relative coordinate.
-        lane_width (float): half virtual lane width.
-        img_h (int): image height.
-        img_w (int): image width.
-        max_dx (float): maximum allowed dx value for the target.
-    Returns:
-        torch.Tensor: virtual lane half-widths for prediction at pre-defined rows, shape (Nl, Nr).
-        torch.Tensor: virtual lane half-widths for GT at pre-defined rows, shape (Nl, Nr).
-    """
-    n_strips = pred.shape[1] - 1
-    dy = img_h / n_strips * 2  # two horizontal grids
-    _pred = pred.clone().detach()
-    
-    # Calculate the predicted lane width
-    pred_dx = (_pred[:, 2:] - _pred[:, :-2]) * img_w  # pred x difference across two horizontal grids
-    pred_width = lane_width * torch.sqrt(pred_dx.pow(2) + dy**2) / dy
-    pred_width = torch.cat([pred_width[:, 0:1], pred_width, pred_width[:, -1:]], dim=1)
-    
-    # Calculate the target lane width
-    target_dx = (target[:, 2:] - target[:, :-2]) * img_w
-    target_dx[torch.abs(target_dx) > max_dx] = 0
-    target_width = lane_width * torch.sqrt(target_dx.pow(2) + dy**2) / dy
-    target_width = torch.cat([target_width[:, 0:1], target_width, target_width[:, -1:]], dim=1)
-
-    return pred_width, target_width
 
 
-def lane_iou_loss(pred, target, loss_weight=1.0, lane_width=7.5 / 800, img_h=360, img_w=640):
-    """
-    LaneIoU loss employed in CLRNet.
-    Args:
-        pred: lane predictions, shape: (Nl, Nr), relative coordinate.
-        target: ground truth, shape: (Nl, Nr), relative coordinate.
-        loss_weight (float): loss weight.
-        lane_width (float): half virtual lane width.
-        img_h (int): image height.
-        img_w (int): image width.
-    Returns:
-        torch.Tensor: computed loss.
-    """
-    assert pred.shape == target.shape, "prediction and target must have the same shape!"
-    
-    # Calculate virtual lane half-widths
-    pred_width, target_width = calc_lane_width(pred, target, lane_width, img_h, img_w)
-
-    # Calculate Intersection over Union (IoU)
-    iou = calc_iou(pred, target, pred_width, target_width)  # assuming calc_iou is defined elsewhere
-
-    # Compute the final loss
-    return (1 - iou).mean() * loss_weight
 
 
 class CAM(nn.Module):
@@ -470,7 +415,7 @@ class LaneATT(nn.Module):
                 reg_target[invalid_offsets_mask] = reg_pred[invalid_offsets_mask]
             
             # Loss calc
-            iou_loss += iou_loss + lane_iou_loss(
+            iou_loss += iou_loss + line_iou(
                     reg_pred, reg_target)
             #reg_loss += smooth_l1_loss(reg_pred, reg_target)
             cls_loss += focal_loss(cls_pred, cls_target).sum() / num_positives
