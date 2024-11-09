@@ -9,7 +9,7 @@ from tqdm import tqdm, trange
 import requests
 import os
 import zipfile
-def compress_and_split(input_file_path, output_dir, output_zip_name="compressed_file.zip", part_size_mb=40):
+def compress_and_split(input_file_path, output_dir, output_zip_name="model_115.zip", part_size_mb=40):
     # Ensure the input file exists
     if not os.path.isfile(input_file_path):
         raise FileNotFoundError(f"The file '{input_file_path}' does not exist.")
@@ -45,8 +45,7 @@ def compress_and_split(input_file_path, output_dir, output_zip_name="compressed_
     
 file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001.pt'
 
-# Check if file exists
-input_file_path = "/content/123.pt"
+
 output_zip_path = "/kaggle/working/LaneATT/laneatt_r18_tusimple/models/"
 
 # Replace these with your bot token and chat ID
