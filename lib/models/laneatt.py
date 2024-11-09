@@ -411,7 +411,7 @@ class LaneATT(nn.Module):
             
             # Loss calc
             iou_loss += iou_loss + liou_loss(
-                    reg_pred, reg_targets,
+                    reg_pred, reg_target,
                     self.img_w, length=15)
             reg_loss += smooth_l1_loss(reg_pred, reg_target)
             cls_loss += focal_loss(cls_pred, cls_target).sum() / num_positives
