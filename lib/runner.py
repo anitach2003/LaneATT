@@ -9,39 +9,45 @@ from tqdm import tqdm, trange
 import requests
 import os
 import zipfile
-def zip_file_in_parts(file_path, part_size_mb=49):
-    # Define the size in bytes for the part size (49 MB)
-    part_size = part_size_mb * 1024 * 1024  # Convert MB to Bytes
-    base_name = os.path.splitext(file_path)[0]
-    file_number = 1
+def compress_and_split(input_file_path, output_dir, output_zip_name="compressed_file.zip", part_size_mb=48):
+    # Ensure the input file exists
+    if not os.path.isfile(input_file_path):
+        raise FileNotFoundError(f"The file '{input_file_path}' does not exist.")
+    
+    # Create output directory if it doesn't exist
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir)
 
-    # Create a zip file for writing
-    with zipfile.ZipFile(f'{base_name}_part{file_number}.zip', 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        current_size = 0
+    # Define the path for the compressed zip file
+    compressed_file = os.path.join(output_dir, output_zip_name)
 
-        # Open the original file for reading in binary mode
-        with open(file_path, 'rb') as original_file:
-            while True:
-                # Read the data chunk
-                chunk = original_file.read(part_size)
-                if not chunk:  # If there is no data left to read, break
-                    break
-                
-                # Check if adding this chunk would exceed the part size
-                if current_size + len(chunk) > part_size:
-                    # If yes, close the current zip file and start a new one
-                    zip_file.close()
-                    file_number += 1
-                    zip_file = zipfile.ZipFile(f'{base_name}_part{file_number}.zip', 'w', zipfile.ZIP_DEFLATED)
-                    current_size = 0  # Reset current size
-                
-                # Write the chunk to the zip file
-                zip_file.writestr(os.path.basename(file_path), chunk)
-                current_size += len(chunk)  # Update the current size
-file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0115.pt'
+    # Step 1: Compress the file
+    with zipfile.ZipFile(compressed_file, 'w', compression=zipfile.ZIP_DEFLATED) as zipf:
+        zipf.write(input_file_path, arcname=os.path.basename(input_file_path))
+    
+    # Step 2: Split the compressed file into chunks
+    part_size = part_size_mb * 1024 * 1024  # Convert MB to bytes
+    with open(compressed_file, 'rb') as f:
+        part_number = 1
+        while True:
+            chunk = f.read(part_size)
+            if not chunk:
+                break
+            part_filename = os.path.join(output_dir, f"{output_zip_name}.part{part_number}")
+            with open(part_filename, 'wb') as chunk_file:
+                chunk_file.write(chunk)
+            print(f"Created {part_filename}")
+            part_number += 1
+
+    # Optionally, delete the full compressed file after splitting
+    os.remove(compressed_file)
+    print("Compression and splitting complete.")
+    
+file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001.pt'
 
 # Check if file exists
-
+input_file_path = "/content/123.pt"
+output_zip_path = "/kaggle/working/LaneATT/laneatt_r18_tusimple/models/"
 
 # Replace these with your bot token and chat ID
 BOT_TOKEN = '7651391280:AAEqT4XRPZZTQNjyQvx_2FzRUNKDdc387BU'
@@ -127,10 +133,10 @@ class Runner:
             self.exp.epoch_end_callback(epoch, max_epochs, model, optimizer, scheduler)
             
             if os.path.exists(file_path):
-                zip_file_in_parts(file_path)
-                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0115_part1.zip')
-                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0115_part2.zip')
-                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0115_part3.zip')
+                compress_and_split(file_path, output_zip_path)
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part1')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part2')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part3')
             else:
                 print("File does not exist.")# Validate
             if (epoch + 1) % self.cfg['val_every'] == 0:
