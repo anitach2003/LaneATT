@@ -14,40 +14,44 @@ from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from .resnet import resnet122 as resnet122_cifar
 from .matching import match_proposals_with_targets
 from .conv import CSPStage
-class WingLoss(nn.Module):
-    def __init__(self, omega=14, theta=0.5, epsilon=1, alpha=2.1):
-        super(WingLoss, self).__init__()
-        self.omega = omega
-        self.theta = theta
-        self.epsilon = epsilon
-        self.alpha = alpha
+import torch
 
-    def forward(self, pred, target):
-        '''
-        :param pred: BxH
-        :param target: BxH
-        :return:
-        '''
-        y = target
-        y_hat = pred
-        delta_y = (y - y_hat).abs()
-        delta_y1 = delta_y[delta_y < self.theta]
-        delta_y2 = delta_y[delta_y >= self.theta]
-        y1 = y[delta_y < self.theta]
-        y2 = y[delta_y >= self.theta]
 
-        loss1 = self.omega * torch.log(1 + torch.pow(delta_y1 / self.omega, self.alpha - y1))
-        
-        # Calculate components for loss2
-        A = self.omega * (1 / (1 + torch.pow(self.theta / self.epsilon, self.alpha - y2))) * (self.alpha - y2) * \
-            (torch.pow(self.theta / self.epsilon, self.alpha - y2 - 1)) * (1 / self.epsilon)
-        C = self.theta * A - self.omega * torch.log(1 + torch.pow(self.theta / self.epsilon, self.alpha - y2))
-        
-        loss2 = A * delta_y2 - C
-        
-        # Return average loss
-        total_loss = (loss1.sum() + loss2.sum()) / (len(loss1) + len(loss2)) if (len(loss1) + len(loss2)) > 0 else torch.tensor(0.0, device=pred.device)
-        return total_loss
+def line_iou(pred, target, img_w, length=15, aligned=True):
+    '''
+    Calculate the line iou value between predictions and targets
+    Args:
+        pred: lane predictions, shape: (num_pred, 72)
+        target: ground truth, shape: (num_target, 72)
+        img_w: image width
+        length: extended radius
+        aligned: True for iou loss calculation, False for pair-wise ious in assign
+    '''
+    px1 = pred - length
+    px2 = pred + length
+    tx1 = target - length
+    tx2 = target + length
+    if aligned:
+        invalid_mask = target
+        ovr = torch.min(px2, tx2) - torch.max(px1, tx1)
+        union = torch.max(px2, tx2) - torch.min(px1, tx1)
+    else:
+        num_pred = pred.shape[0]
+        invalid_mask = target.repeat(num_pred, 1, 1)
+        ovr = (torch.min(px2[:, None, :], tx2[None, ...]) -
+               torch.max(px1[:, None, :], tx1[None, ...]))
+        union = (torch.max(px2[:, None, :], tx2[None, ...]) -
+                 torch.min(px1[:, None, :], tx1[None, ...]))
+
+    invalid_masks = (invalid_mask < 0) | (invalid_mask >= img_w)
+    ovr[invalid_masks] = 0.
+    union[invalid_masks] = 0.
+    iou = ovr.sum(dim=-1) / (union.sum(dim=-1) + 1e-9)
+    return iou
+
+
+def liou_loss(pred, target, img_w, length=15):
+    return (1 - line_iou(pred, target, img_w, length)).mean()
 class CAM(nn.Module):
     def __init__(self, channels, r):
         super(CAM, self).__init__()
@@ -349,6 +353,7 @@ class LaneATT(nn.Module):
         smooth_l1_loss = nn.SmoothL1Loss()
         cls_loss = 0
         reg_loss = 0
+        iou_loss=0
         valid_imgs = len(targets)
         total_positives = 0
         for (proposals, anchors, _, _), target in zip(proposals_list, targets):
@@ -405,6 +410,9 @@ class LaneATT(nn.Module):
                 reg_target[invalid_offsets_mask] = reg_pred[invalid_offsets_mask]
             
             # Loss calc
+            iou_loss += iou_loss + liou_loss(
+                    reg_pred, reg_targets,
+                    self.img_w, length=15)
             reg_loss += smooth_l1_loss(reg_pred, reg_target)
             cls_loss += focal_loss(cls_pred, cls_target).sum() / num_positives
 
@@ -412,7 +420,7 @@ class LaneATT(nn.Module):
         cls_loss /= valid_imgs
         reg_loss /= valid_imgs
 
-        loss = cls_loss_weight * cls_loss + reg_loss
+        loss = cls_loss_weight * cls_loss + reg_loss+iou_loss
         return loss, {'cls_loss': cls_loss, 'reg_loss': reg_loss, 'batch_positives': total_positives}
 
     def compute_anchor_cut_indices(self, n_fmaps, fmaps_w, fmaps_h):
