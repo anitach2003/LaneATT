@@ -36,14 +36,12 @@ def compress_and_split(input_file_path, output_dir, output_zip_name="model_115.z
             part_filename = os.path.join(output_dir, f"{output_zip_name}.part{part_number}")
             with open(part_filename, 'wb') as chunk_file:
                 chunk_file.write(chunk)
-            print(f"Created {part_filename}")
             part_number += 1
 
     # Optionally, delete the full compressed file after splitting
     os.remove(compressed_file)
-    print("Compression and splitting complete.")
     
-file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001.pt'
+file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0115.pt'
 
 
 output_zip_path = "/kaggle/working/LaneATT/laneatt_r18_tusimple/models/"
