@@ -353,8 +353,9 @@ class LaneATT(nn.Module):
 
         return proposals_list
 
-    def loss(self, proposals_list, targets, cls_loss_weight=10):
+    def loss(self, proposals_list, targets, cls_loss_weight=2.):
         focal_loss = FocalLoss(alpha=0.25, gamma=2.)
+        cls_loss_weight=2.
         smooth_l1_loss = nn.SmoothL1Loss()
         cls_loss = 0
         reg_loss = 0
@@ -422,10 +423,11 @@ class LaneATT(nn.Module):
             cls_loss += focal_loss(cls_pred, cls_target).sum() / num_positives
 
         # Batch mean
+        iou_loss /= (len(target) * 1)
         cls_loss /= valid_imgs
        # reg_loss /= valid_imgs
 
-        loss = cls_loss_weight * cls_loss +iou_loss
+        loss = cls_loss_weight * cls_loss + iou_loss * cls_loss_weight
         return loss, {'cls_loss': cls_loss, 'reg_loss': iou_loss, 'batch_positives': total_positives}
 
     def compute_anchor_cut_indices(self, n_fmaps, fmaps_w, fmaps_h):
