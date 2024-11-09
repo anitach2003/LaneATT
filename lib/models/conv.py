@@ -342,7 +342,7 @@ class CSPStage(nn.Module):
             mid_out.append(y2)
 
         y = torch.cat(mid_out, axis=1)
-        print(x.shape)
+
         y = self.conv3(y)
         
         return y
