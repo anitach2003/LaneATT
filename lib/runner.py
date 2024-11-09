@@ -9,7 +9,7 @@ from tqdm import tqdm, trange
 import requests
 import os
 import zipfile
-def compress_and_split(input_file_path, output_dir, output_zip_name="compressed_file.zip", part_size_mb=48):
+def compress_and_split(input_file_path, output_dir, output_zip_name="compressed_file.zip", part_size_mb=40):
     # Ensure the input file exists
     if not os.path.isfile(input_file_path):
         raise FileNotFoundError(f"The file '{input_file_path}' does not exist.")
@@ -137,6 +137,7 @@ class Runner:
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part1')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part2')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part3')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part4')
             else:
                 print("File does not exist.")# Validate
             if (epoch + 1) % self.cfg['val_every'] == 0:
