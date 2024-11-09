@@ -271,13 +271,13 @@ class LaneATT(nn.Module):
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
         batch_features = self.feature_extractor(x)
-        A=CSPStage(512,64,4,spp=True).to('cuda')
-        batch_features=A(batch_features)
+       # A=CSPStage(512,64,4,spp=True).to('cuda')
+       # batch_features=A(batch_features)
         #model = SwinFeatureExtractor()
        # batch_features=model(x)
 
        # bach=CBAM(512,512).to('cuda')
-       # batch_features=bach(batch_features)
+        batch_features=self.conv1(batch_features)
         
         batch_anchor_features = self.cut_anchor_features(batch_features)
 
