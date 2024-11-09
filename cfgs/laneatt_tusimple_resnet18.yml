@@ -23,7 +23,7 @@ test_parameters:
   nms_thres: 45.
   nms_topk: &max_lanes 5
 optimizer:
-  name: Adam
+  name: AdamW
   parameters:
     lr: 0.0003
 lr_scheduler:
