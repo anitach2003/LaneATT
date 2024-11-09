@@ -424,8 +424,7 @@ class LaneATT(nn.Module):
         cls_loss /= valid_imgs
         reg_loss /= valid_imgs
 
-       loss = cls_loss_weight * cls_loss + reg_loss+iou_loss
-        loss = cls_loss_weight * cls_loss + iou_loss
+        loss = cls_loss_weight * cls_loss + reg_loss+iou_loss
         return loss, {'cls_loss': cls_loss, 'reg_loss': iou_loss, 'batch_positives': total_positives}
 
     def compute_anchor_cut_indices(self, n_fmaps, fmaps_w, fmaps_h):
