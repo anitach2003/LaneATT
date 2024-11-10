@@ -41,7 +41,7 @@ def compress_and_split(input_file_path, output_dir, output_zip_name="model_115.z
     # Optionally, delete the full compressed file after splitting
     os.remove(compressed_file)
     
-file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0100.pt'
+file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0001.pt'
 
 
 output_zip_path = "/kaggle/working/LaneATT/laneatt_r18_tusimple/models/"
@@ -135,6 +135,9 @@ class Runner:
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part2')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part3')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part4')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part5')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part6')
+                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_115.zip.part7')
             else:
                 print("File does not exist.")# Validate
             if (epoch + 1) % self.cfg['val_every'] == 0:
