@@ -41,7 +41,7 @@ def compress_and_split(input_file_path, output_dir, output_zip_name="model_115.z
     # Optionally, delete the full compressed file after splitting
     os.remove(compressed_file)
     
-file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0115.pt'
+file_path = '/kaggle/working/LaneATT/laneatt_r18_tusimple/models/model_0100.pt'
 
 
 output_zip_path = "/kaggle/working/LaneATT/laneatt_r18_tusimple/models/"
