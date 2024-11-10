@@ -23,7 +23,7 @@ test_parameters:
   nms_thres: 45.
   nms_topk: &max_lanes 5
 optimizer:
-  name: Adam
+  name: AdamW
   parameters:
     lr: 0.0003
 lr_scheduler:
@@ -55,7 +55,7 @@ datasets:
           parameters:
             p: 0.5
 
-      root: "datasets/tusimple"
+      root: "/kaggle/input/tusimple/TUSimple/train_set"
 
   test:
     type: LaneDataset
@@ -68,7 +68,7 @@ datasets:
       normalize: false
       aug_chance: 0
       augmentations:
-      root: "datasets/tusimple-test"
+      root: "/kaggle/input/tusimple/TUSimple/test_set"
 
   val:
     type: LaneDataset
@@ -81,4 +81,4 @@ datasets:
       normalize: false
       aug_chance: 0
       augmentations:
-      root: "datasets/tusimple"
+      root: "/kaggle/input/tusimple/TUSimple/train_set"
