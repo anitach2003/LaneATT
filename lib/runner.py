@@ -44,7 +44,7 @@ def compress_and_split(input_file_path, output_dir, output_zip_name="model_115.z
 file_path = '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0001.pt'
 
 
-output_zip_path = "/kaggle/working/LaneATT/laneatt_r18_tusimple/models/"
+output_zip_path = "/kaggle/working/LaneATT/laneatt_r34_tusimple/models/"
 
 # Replace these with your bot token and chat ID
 BOT_TOKEN = '7651391280:AAEqT4XRPZZTQNjyQvx_2FzRUNKDdc387BU'
@@ -137,7 +137,7 @@ class Runner:
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part4')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part5')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part6')
-                send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part7')
+               # send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part7')
             else:
                 print("File does not exist.")# Validate
             if (epoch + 1) % self.cfg['val_every'] == 0:
