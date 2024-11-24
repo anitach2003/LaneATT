@@ -9,7 +9,7 @@ model:
     S: &S 72
     topk_anchors: 1000
     anchors_freq_path: 'data/llamas_anchors_freq.pt'
-    img_h: &img_h 360
+    img_h: &img_h 384
     img_w: &img_w 640
 batch_size: 8
 epochs: 15
