@@ -311,11 +311,18 @@ class LaneATT(nn.Module):
         num_layers = 6
 
 
-        anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
+      #  anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
 
 
-        transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
-        attention_matrix = transformer_model(anchor_features)
+        #transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
+       # attention_matrix = transformer_model(anchor_features)
+        softmax = nn.Softmax(dim=1)
+        scores = self.attention_layer(batch_anchor_features)
+        attention = softmax(scores).reshape(x.shape[0], len(self.anchors), -1)
+        attention_matrix = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
+        non_diag_inds = torch.nonzero(attention_matrix == 0., as_tuple=False)
+        attention_matrix[:] = 0
+        attention_matrix[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
         batch_anchor_features = batch_anchor_features.reshape(x.shape[0], len(self.anchors), -1)
         attention_features = torch.bmm(torch.transpose(batch_anchor_features, 1, 2),
                                        torch.transpose(attention_matrix, 1, 2)).transpose(1, 2)
@@ -681,20 +688,4 @@ def get_backbone(backbone, pretrained=False):
         raise NotImplementedError('Backbone not implemented: `{}`'.format(backbone))
 
     return backbone, fmap_c, stride
-def get_backbone1(backbone='resnet18', pretrained=False):
-    if backbone == 'resnet122':
-        backbone = resnet122_cifar()
-        fmap_c = 64
-        stride = 4
-    elif backbone == 'resnet34':
-        backbone = torch.nn.Sequential(*list(resnet34(pretrained=pretrained).children())[:-3])
-        fmap_c = 512
-        stride = 32
-    elif backbone == 'resnet18':
-        backbone = torch.nn.Sequential(*list(resnet18(pretrained=pretrained).children())[:-3])
-        fmap_c = 512
-        stride = 32
-    else:
-        raise NotImplementedError('Backbone not implemented: `{}`'.format(backbone))
 
-    return backbone, fmap_c, stride
