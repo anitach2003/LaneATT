@@ -15,7 +15,7 @@ from .resnet import resnet122 as resnet122_cifar
 from .matching import match_proposals_with_targets
 from .conv import CSPStage
 import torch
-from main_model import main_model
+from .main_model import main_model
 
 def line_iou(pred, target, img_w, length=15, aligned=True):
     '''
