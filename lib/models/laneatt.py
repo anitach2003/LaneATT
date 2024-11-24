@@ -204,7 +204,7 @@ class TransformerModel(nn.Module):
 
         # Average across heads to get to (batch_size, seq_length, seq_length)
         final_attention_weights = final_attention_weights.mean(dim=1)  # Shape: (batch_size, seq_length, seq_length)
-                batch_size, seq_length, _ = final_attention_weights.shape
+        batch_size, seq_length, _ = final_attention_weights.shape
 
         # 1. Set diagonal elements to 0
         for i in range(batch_size):
