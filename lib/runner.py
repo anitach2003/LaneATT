@@ -9,6 +9,9 @@ from tqdm import tqdm, trange
 import requests
 import os
 import zipfile
+file_path = '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0100.pt'
+
+directory = "/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0050.pt"
 def compress_and_split(input_file_path, output_dir, output_zip_name="model_115.zip", part_size_mb=40):
     # Ensure the input file exists
     if not os.path.isfile(input_file_path):
@@ -131,6 +134,9 @@ class Runner:
                 postfix_dict['loss'] = loss.item()
                 pbar.set_postfix(ordered_dict=postfix_dict)
             self.exp.epoch_end_callback(epoch, max_epochs, model, optimizer, scheduler)
+            file_path = '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0100.pt'
+
+            directory = "/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0050.pt"
             if os.path.exists(directory):
                 for i in range(1, 51):
                     filename = f"model_{i:04d}.pt"
