@@ -281,7 +281,7 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.conv1)
         self.initialize_layer(self.cls_layer)
         self.initialize_layer(self.reg_layer)
-        self.main=main_model(1).to('cuda')
+       # self.main=main_model(1).to('cuda')
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
