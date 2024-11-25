@@ -29,7 +29,7 @@ class LaneDataset(Dataset):
                  dataset='tusimple',
                  augmentations=None,
                  normalize=False,
-                 img_size=(384, 640),
+                 img_size=(360, 640),
                  aug_chance=1.,
                  **kwargs):
         super(LaneDataset, self).__init__()
