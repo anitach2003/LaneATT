@@ -134,6 +134,7 @@ class Runner:
                 postfix_dict['loss'] = loss.item()
                 pbar.set_postfix(ordered_dict=postfix_dict)
             self.exp.epoch_end_callback(epoch, max_epochs, model, optimizer, scheduler)
+            """
             file_path = '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0100.pt'
 
             directory = "/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0050.pt"
@@ -154,6 +155,7 @@ class Runner:
                # send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part7')
             else:
                 print("File does not exist.")# Validate
+            """
             if (epoch + 1) % self.cfg['val_every'] == 0:
                 self.eval(epoch, on_val=True)
         self.exp.train_end_callback()
