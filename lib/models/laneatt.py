@@ -226,7 +226,7 @@ class LaneATT(nn.Module):
                  pretrained_backbone=True,
                  S=72,
                  img_w=640,
-                 img_h=384,
+                 img_h=360,
                  anchors_freq_path=None,
                  topk_anchors=None,
                  anchor_feat_channels=64):
