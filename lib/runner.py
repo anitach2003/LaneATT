@@ -137,9 +137,10 @@ class Runner:
             if os.path.exists(directory):
                 for i in range(1, 51):
                     filename = f"model_{i:04d}.pt"
-                    file_path = os.path.join(directory, filename)
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
+                    file_path1 = os.path.join(directory, filename)
+                    print(file_path1)
+                    if os.path.exists(file_path1):
+                        os.remove(file_path1)
             if os.path.exists(file_path):
                 compress_and_split(file_path, output_zip_path)
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part1')
