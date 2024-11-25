@@ -47,7 +47,7 @@ def compress_and_split(input_file_path, output_dir, output_zip_name="model_115.z
 file_path = '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0100.pt'
 
 directory = "/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0050.pt"
-
+directory1 = "/kaggle/working/LaneATT/laneatt_r34_tusimple/models/"
 
 
 output_zip_path = "/kaggle/working/LaneATT/laneatt_r34_tusimple/models/"
@@ -134,11 +134,11 @@ class Runner:
                 postfix_dict['loss'] = loss.item()
                 pbar.set_postfix(ordered_dict=postfix_dict)
             self.exp.epoch_end_callback(epoch, max_epochs, model, optimizer, scheduler)
-            """
+            
             if os.path.exists(directory):
                 for i in range(1, 51):
                     filename = f"model_{i:04d}.pt"
-                    file_path1 = os.path.join(directory, filename)
+                    file_path1 = os.path.join(directory1, filename)
                     print(file_path1)
                     if os.path.exists(file_path1):
                         os.remove(file_path1)
@@ -153,7 +153,7 @@ class Runner:
                # send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part7')
             else:
                 print("File does not exist.")# Validate
-            """
+            
             if (epoch + 1) % self.cfg['val_every'] == 0:
                 self.eval(epoch, on_val=True)
         self.exp.train_end_callback()
