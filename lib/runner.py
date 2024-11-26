@@ -12,6 +12,21 @@ import zipfile
 file_path = '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0100.pt'
 
 directory = "/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_0050.pt"
+def send_text_to_telegram(bot_token, chat_id, message):
+    url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+    response = requests.post(
+        url,
+        data={
+            'chat_id': chat_id,
+            'text': message
+        }
+    )
+    
+    # Check the response
+    if response.status_code == 200:
+        print("Message sent successfully!")
+    else:
+        print("Failed to send message:", response.text)
 def compress_and_split(input_file_path, output_dir, output_zip_name="model_115.zip", part_size_mb=40):
     # Ensure the input file exists
     if not os.path.isfile(input_file_path):
@@ -150,6 +165,7 @@ class Runner:
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part4')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part5')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part6')
+                send_text_to_telegram(BOT_TOKEN, CHAT_ID, 'still running')
                # send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part7')
             else:
                 print("File does not exist.")# Validate
