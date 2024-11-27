@@ -259,6 +259,14 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.conv1)
         self.initialize_layer(self.cls_layer)
         self.initialize_layer(self.reg_layer)
+        self.theta = nn.Conv2d(512, 512 // 2, kernel_size=1)
+        self.phi = nn.Conv2d(512, 512 // 2, kernel_size=1)
+        self.g = nn.Conv2d(512, 512 // 2, kernel_size=1)
+        self.out_conv = nn.Conv2d(512 // 2, 512, kernel_size=1)
+        self.initialize_layer(self.theta)
+        self.initialize_layer(self.phi)
+        self.initialize_layer(self.g)
+        self.initialize_layer(self.out_conv)
 
        # self.main=main_model(1).to('cuda')
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
@@ -275,6 +283,15 @@ class LaneATT(nn.Module):
        # batch_features=model(x)
 
        # bach=CBAM(512,512).to('cuda')
+        batch_size, _, height, width = batch_features.size()
+        theta = self.theta(x).view(batch_size, -1, height * width)  # (B, C/2, H*W)
+        phi = self.phi(x).view(batch_size, -1, height * width)      # (B, C/2, H*W)
+        g = self.g(x).view(batch_size, -1, height * width)          # (B, C/2, H*W)
+        theta_phi = torch.bmm(theta.permute(0, 2, 1), phi)  # (B, H*W, H*W)
+        attention = F.softmax(theta_phi, dim=-1)  # (B, H*W, H*W)
+        weighted_g = torch.bmm(g, attention.permute(0, 2, 1))  # (B, C/2, H*W)
+        weighted_g = weighted_g.view(batch_size, -1, height, width)  # (B, C/2, H, W)
+        batch_features = self.out_conv(weighted_g) + x
         batch_features=self.conv1(batch_features)
         
         batch_anchor_features = self.cut_anchor_features(batch_features)
