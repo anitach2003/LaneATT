@@ -1,5 +1,5 @@
 # Model settings
-val_every: 10
+val_every: 2
 model_checkpoint_interval: 1
 seed: 0
 model:
