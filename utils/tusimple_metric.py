@@ -2,8 +2,23 @@
 import numpy as np
 import ujson as json
 from sklearn.linear_model import LinearRegression
-
-
+def send_text_to_telegram(bot_token, chat_id, message):
+    url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+    response = requests.post(
+        url,
+        data={
+            'chat_id': chat_id,
+            'text': message
+        }
+    )
+    
+    # Check the response
+    if response.status_code == 200:
+        print("Message sent successfully!")
+    else:
+        print("Failed to send message:", response.text)
+BOT_TOKEN = '7651391280:AAEqT4XRPZZTQNjyQvx_2FzRUNKDdc387BU'
+CHAT_ID = '-134642039'
 class LaneEval(object):
     lr = LinearRegression()
     pixel_thresh = 20
@@ -106,8 +121,14 @@ class LaneEval(object):
             fp += p
             fn += n
         num = len(gts)
-        # the first return parameter is the default ranking parameter
-        print(accuracy / num)
+        a=1-(fn / num) 
+        b=1-(fp / num) 
+        v=(a*b*2)/(a+b)
+        de=accuracy / num
+        fnr=fp / num
+        fpr=fn / num
+        message=str(de)+','+str(fpr)+','+str(fnr)+','+str(v)
+        send_text_to_telegram(BOT_TOKEN, CHAT_ID, message)
         return json.dumps([{
             'name': 'Accuracy',
             'value': accuracy / num,
