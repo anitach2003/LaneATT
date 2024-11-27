@@ -258,7 +258,7 @@ class LaneATT(nn.Module):
         self.conv_l2 = nn.Conv2d(512, 512, kernel_size=(1,7), padding =1)
         self.conv_r1 = nn.Conv2d(512, 512, kernel_size=(1,7), padding =1)
         self.conv_r2 = nn.Conv2d(512, 512, kernel_size=(7,1), padding =1)
-        self.bn = nn.BatchNorm2d(out_c)
+        self.bn = nn.BatchNorm2d(512)
         self.relu = nn.ReLU(inplace=True)
         self.conv11 = nn.Conv2d(512,512, kernel_size=3,padding=1)
         self.conv22 = nn.Conv2d(512,512, kernel_size=3,padding=1)
