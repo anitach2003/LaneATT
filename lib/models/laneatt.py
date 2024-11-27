@@ -181,21 +181,21 @@ class TransformerModel(nn.Module):
 
         # Average across heads to get to (batch_size, seq_length, seq_length)
         final_attention_weights = final_attention_weights.mean(dim=1)  # Shape: (batch_size, seq_length, seq_length)
-        batch_size, seq_length, _ = final_attention_weights.shape
+      #  batch_size, seq_length, _ = final_attention_weights.shape
 
         # 1. Set diagonal elements to 0
-        for i in range(batch_size):
-            final_attention_weights[i].fill_diagonal_(0)
+     #   for i in range(batch_size):
+      #      final_attention_weights[i].fill_diagonal_(0)
 
         # 2. Normalize each row to ensure the sum is 1
         # Calculate row sums excluding the diagonal (set diagonal to 0 before)
-        row_sums = final_attention_weights.sum(dim=2, keepdim=True)  # Shape: (batch_size, seq_length, 1)
+      #  row_sums = final_attention_weights.sum(dim=2, keepdim=True)  # Shape: (batch_size, seq_length, 1)
 
         # Avoid division by zero: add a small epsilon to the sum to prevent NaNs if the row is all zero
-        row_sums = row_sums + 1e-8  # Add a small value to avoid division by zero
+       # row_sums = row_sums + 1e-8  # Add a small value to avoid division by zero
 
         # Normalize the rows: divide by the sum of each row
-        final_attention_weights = final_attention_weights / row_sums
+        #final_attention_weights = final_attention_weights / row_sums
         return final_attention_weights
 class LaneATT(nn.Module):
     def __init__(self,
@@ -254,42 +254,18 @@ class LaneATT(nn.Module):
         self.cls_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, 2)
         self.reg_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, self.n_offsets + 1)
         self.attention_layer = nn.Linear(self.anchor_feat_channels * self.fmap_h, len(self.anchors) - 1)
-        self.conv_l1 = nn.Conv2d(512, 512, kernel_size=(7,1), padding =1)
-        self.conv_l2 = nn.Conv2d(512, 512, kernel_size=(1,7), padding =1)
-        self.conv_r1 = nn.Conv2d(512, 512, kernel_size=(1,7), padding =1)
-        self.conv_r2 = nn.Conv2d(512, 512, kernel_size=(7,1), padding =1)
-        self.bn = nn.BatchNorm2d(512)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv11 = nn.Conv2d(512,512, kernel_size=3,padding=1)
-        self.conv22 = nn.Conv2d(512,512, kernel_size=3,padding=1)
+
         self.initialize_layer(self.attention_layer)
         self.initialize_layer(self.conv1)
         self.initialize_layer(self.cls_layer)
         self.initialize_layer(self.reg_layer)
-        self.initialize_layer(self.conv_l1)
-        self.initialize_layer(self.conv_l2)
-        self.initialize_layer(self.conv_r1)
-        self.initialize_layer(self.conv_r2)
-        self.initialize_layer(self.conv11)
-        self.initialize_layer(self.conv22)
-        self.edge_detector = EdgeDetection().to('cuda')
-        # Cross-attention
-        self.cross_attention = CrossAttention2D(query_channels=512, key_value_channels=1, out_channels=512).to('cuda')
+
        # self.main=main_model(1).to('cuda')
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
         batch_features = self.feature_extractor(x)
-        x_l = self.conv_l1(batch_features)
-        x_l = self.conv_l2(x_l)
-        x_r = self.conv_r1(batch_features)
-        x_r = self.conv_r2(x_r)
-        batch_features = x_l + x_r
-        x_res = batch_features
-        x_res = self.conv11(x_res)
-        x_res = self.relu(x_res)
-        x_res = self.conv22(x_res)
-        batch_features = batch_features + x_res
+
 
         # Use cross-attention with feature map as query and edge map as key/value
 
@@ -318,18 +294,12 @@ class LaneATT(nn.Module):
         num_layers = 6
 
 
-        #anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
+        anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
 
 
-        #transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
-        #attention_matrix = transformer_model(anchor_features)
-        softmax = nn.Softmax(dim=1)
-        scores = self.attention_layer(batch_anchor_features)
-        attention = softmax(scores).reshape(x.shape[0], len(self.anchors), -1)
-        attention_matrix = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
-        non_diag_inds = torch.nonzero(attention_matrix == 0., as_tuple=False)
-        attention_matrix[:] = 0
-        attention_matrix[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
+        transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
+        attention_matrix = transformer_model(anchor_features)
+
         batch_anchor_features = batch_anchor_features.reshape(x.shape[0], len(self.anchors), -1)
         attention_features = torch.bmm(torch.transpose(batch_anchor_features, 1, 2),
                                        torch.transpose(attention_matrix, 1, 2)).transpose(1, 2)
