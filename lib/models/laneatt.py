@@ -284,9 +284,9 @@ class LaneATT(nn.Module):
 
        # bach=CBAM(512,512).to('cuda')
         batch_size, _, height, width = batch_features.size()
-        theta = self.theta(x).view(batch_size, -1, height * width)  # (B, C/2, H*W)
-        phi = self.phi(x).view(batch_size, -1, height * width)      # (B, C/2, H*W)
-        g = self.g(x).view(batch_size, -1, height * width)          # (B, C/2, H*W)
+        theta = self.theta(batch_features).view(batch_size, -1, height * width)  # (B, C/2, H*W)
+        phi = self.phi(batch_features).view(batch_size, -1, height * width)      # (B, C/2, H*W)
+        g = self.g(batch_features).view(batch_size, -1, height * width)          # (B, C/2, H*W)
         theta_phi = torch.bmm(theta.permute(0, 2, 1), phi)  # (B, H*W, H*W)
         attention = F.softmax(theta_phi, dim=-1)  # (B, H*W, H*W)
         weighted_g = torch.bmm(g, attention.permute(0, 2, 1))  # (B, C/2, H*W)
