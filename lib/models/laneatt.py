@@ -254,10 +254,24 @@ class LaneATT(nn.Module):
         self.cls_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, 2)
         self.reg_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, self.n_offsets + 1)
         self.attention_layer = nn.Linear(self.anchor_feat_channels * self.fmap_h, len(self.anchors) - 1)
+        self.conv_l1 = nn.Conv2d(512, 512, kernel_size=(k,1), padding =1)
+        self.conv_l2 = nn.Conv2d(512, 512, kernel_size=(1,k), padding =1)
+        self.conv_r1 = nn.Conv2d(512, 512, kernel_size=(1,k), padding =1)
+        self.conv_r2 = nn.Conv2d(512, 512, kernel_size=(k,1), padding =1)
+        self.bn = nn.BatchNorm2d(out_c)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv11 = nn.Conv2d(512,512, kernel_size=3,padding=1)
+        self.conv22 = nn.Conv2d(512,512, kernel_size=3,padding=1)
         self.initialize_layer(self.attention_layer)
         self.initialize_layer(self.conv1)
         self.initialize_layer(self.cls_layer)
         self.initialize_layer(self.reg_layer)
+        self.initialize_layer(self.conv_l1)
+        self.initialize_layer(self.conv_l2)
+        self.initialize_layer(self.conv_r1)
+        self.initialize_layer(self.conv_r2)
+        self.initialize_layer(self.conv11)
+        self.initialize_layer(self.conv22)
         self.edge_detector = EdgeDetection().to('cuda')
         # Cross-attention
         self.cross_attention = CrossAttention2D(query_channels=512, key_value_channels=1, out_channels=512).to('cuda')
@@ -266,11 +280,19 @@ class LaneATT(nn.Module):
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
         batch_features = self.feature_extractor(x)
-        edges = self.edge_detector(x)  # [B, 1, H, W]
-        edges_resized = F.interpolate(edges, size=batch_features.shape[2:], mode='bilinear', align_corners=False)  # Match size
+        x_l = self.conv_l1(batch_features)
+        x_l = self.conv_l2(x_l)
+        x_r = self.conv_r1(batch_features)
+        x_r = self.conv_r2(x_r)
+        batch_features = x_l + x_r
+        x_res = batch_features
+        x_res = self.conv1(x_res)
+        x_res = self.relu(x_res)
+        x_res = self.conv2(x_res)
+        batch_features = batch_features + x_res
 
         # Use cross-attention with feature map as query and edge map as key/value
-        batch_features = self.cross_attention(query=batch_features, key=edges_resized, value=edges_resized)
+
        # A=CSPStage(512,64,4,spp=True).to('cuda')
        # batch_features=A(batch_features)
         #model = SwinFeatureExtractor()
