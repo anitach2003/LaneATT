@@ -25,8 +25,13 @@ class TuSimple(LaneDatasetLoader):
 
         if split not in SPLIT_FILES.keys():
             raise Exception('Split `{}` does not exist.'.format(split))
+        A='/kaggle/input/tusimple/TUSimple/'
+        for path in SPLIT_FILES[split]:
+            if path=='test_label.json':
+                self.anno_files = [os.path.join(A, path)]
+            else:
+                self.anno_files = [os.path.join(self.root, path)]
 
-        self.anno_files = [os.path.join(self.root, path) for path in SPLIT_FILES[split]]
 
         if root is None:
             raise Exception('Please specify the root directory')
@@ -112,7 +117,7 @@ class TuSimple(LaneDatasetLoader):
             line = self.pred2tusimpleformat(idx, prediction, runtime)
             lines.append(line)
         with open(filename, 'w') as output_file:
-            output_file.write('\n'.join(lines))
+            output_file.write('n'.join(lines))
 
     def eval_predictions(self, predictions, output_basedir, runtimes=None):
         pred_filename = os.path.join(output_basedir, 'tusimple_predictions.json')
