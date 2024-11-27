@@ -57,63 +57,40 @@ def liou_loss(pred, target, img_w, length=15):
 
 
 
-class CAM(nn.Module):
-    def __init__(self, channels, r):
-        super(CAM, self).__init__()
-        self.channels = channels
-        self.r = r
-        self.linear = nn.Sequential(
-            nn.Linear(in_features=self.channels, out_features=self.channels//self.r, bias=True),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features=self.channels//self.r, out_features=self.channels, bias=True))
-
-    def forward(self, x):
-        max = F.adaptive_max_pool2d(x, output_size=1)
-        avg = F.adaptive_avg_pool2d(x, output_size=1)
-        b, c, _, _ = x.size()
-        linear_max = self.linear(max.view(b,c)).view(b, c, 1, 1)
-        linear_avg = self.linear(avg.view(b,c)).view(b, c, 1, 1)
-        output = linear_max + linear_avg
-        output = F.sigmoid(output) * x
-        return output
-
-class SAM(nn.Module):
-    def __init__(self, bias=False):
-        super(SAM, self).__init__()
-        self.bias = bias
-        self.conv = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=7, stride=1, padding=3, dilation=1, bias=self.bias)
-
-    def forward(self, x):
-        max = torch.max(x,1)[0].unsqueeze(1)
-        avg = torch.mean(x,1).unsqueeze(1)
-        concat = torch.cat((max,avg), dim=1)
-        output = self.conv(concat)
-        output = F.sigmoid(output) * x 
-        return output
-
-
-class CBAM(nn.Module):
-    def __init__(self, channels, r):
-        super(CBAM, self).__init__()
-        self.channels = channels
-        self.r = r
-        self.sam = SAM(bias=False)
-        self.cam = CAM(channels=self.channels, r=self.r)
-
-    def forward(self, x):
-        output = self.cam(x)
-        output = self.sam(output)
-        return output + x
-class SwinFeatureExtractor(nn.Module):
+class EdgeDetection(nn.Module):
     def __init__(self):
-        super(SwinFeatureExtractor, self).__init__()
-        self.model = timm.create_model("swin_base_patch4_window12_384", features_only=True, pretrained=True)
-        self.model = self.model.to('cuda')  # Move model to GPU
+        super(EdgeDetection, self).__init__()
+        self.sobel_x = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        self.sobel_y = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0)
 
     def forward(self, x):
-        features = self.model(x)
-        feat2 = features[-1].permute(0, 3, 1, 2)
-        return feat2
+        x = x.mean(dim=1, keepdim=True)  # Convert to grayscale
+        edges_x = F.conv2d(x, self.sobel_x.to(x.device), padding=1)
+        edges_y = F.conv2d(x, self.sobel_y.to(x.device), padding=1)
+        edges = torch.sqrt(edges_x ** 2 + edges_y ** 2)  # Magnitude of gradient
+        return edges
+
+
+# Cross-Attention Module
+class CrossAttention2D(nn.Module):
+    def __init__(self, query_channels, key_value_channels, out_channels):
+        super(CrossAttention2D, self).__init__()
+        self.query_conv = nn.Conv2d(query_channels, out_channels, kernel_size=1)
+        self.key_conv = nn.Conv2d(key_value_channels, out_channels, kernel_size=1)
+        self.value_conv = nn.Conv2d(key_value_channels, out_channels, kernel_size=1)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, query, key, value):
+        B, C, H, W = query.size()  # [B, C, H, W]
+        query = self.query_conv(query).view(B, -1, H * W).permute(0, 2, 1)  # [B, HW, C_out]
+        key = self.key_conv(key).view(B, -1, H * W)  # [B, C_out, HW]
+        value = self.value_conv(value).view(B, -1, H * W).permute(0, 2, 1)  # [B, HW, C_out]
+
+        attention = torch.bmm(query, key)  # [B, HW, HW]
+        attention = self.softmax(attention)  # Normalize attention scores
+        out = torch.bmm(attention, value)  # [B, HW, C_out]
+        out = out.permute(0, 2, 1).view(B, C, H, W)  # [B, C_out, H, W]
+        return out
 import torch.nn.functional as F
 class MultiHeadAttention(nn.Module):
     def __init__(self, input_dim, num_heads):
@@ -281,11 +258,19 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.conv1)
         self.initialize_layer(self.cls_layer)
         self.initialize_layer(self.reg_layer)
+        self.edge_detector = EdgeDetection().to('cuda')
+        # Cross-attention
+        self.cross_attention = CrossAttention2D(query_channels=512, key_value_channels=1, out_channels=512).to('cuda')
        # self.main=main_model(1).to('cuda')
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
         batch_features = self.feature_extractor(x)
+        edges = self.edge_detector(x)  # [B, 1, H, W]
+        edges_resized = F.interpolate(edges, size=batch_features.shape[2:], mode='bilinear', align_corners=False)  # Match size
+
+        # Use cross-attention with feature map as query and edge map as key/value
+        batch_features = self.cross_attention(query=batch_features, key=edges_resized, value=edges_resized)
        # A=CSPStage(512,64,4,spp=True).to('cuda')
        # batch_features=A(batch_features)
         #model = SwinFeatureExtractor()
@@ -311,12 +296,18 @@ class LaneATT(nn.Module):
         num_layers = 6
 
 
-        anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
+        #anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
 
 
-        transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
-        attention_matrix = transformer_model(anchor_features)
-
+        #transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
+        #attention_matrix = transformer_model(anchor_features)
+        softmax = nn.Softmax(dim=1)
+        scores = self.attention_layer(batch_anchor_features)
+        attention = softmax(scores).reshape(x.shape[0], len(self.anchors), -1)
+        attention_matrix = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
+        non_diag_inds = torch.nonzero(attention_matrix == 0., as_tuple=False)
+        attention_matrix[:] = 0
+        attention_matrix[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
         batch_anchor_features = batch_anchor_features.reshape(x.shape[0], len(self.anchors), -1)
         attention_features = torch.bmm(torch.transpose(batch_anchor_features, 1, 2),
                                        torch.transpose(attention_matrix, 1, 2)).transpose(1, 2)
