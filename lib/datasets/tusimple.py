@@ -26,7 +26,12 @@ class TuSimple(LaneDatasetLoader):
         if split not in SPLIT_FILES.keys():
             raise Exception('Split `{}` does not exist.'.format(split))
 
-        self.anno_files = [os.path.join(self.root, path) for path in SPLIT_FILES[split]]
+        A='/kaggle/input/tusimple/TUSimple/'
+        for path in SPLIT_FILES[split]:
+            if path=='test_label.json':
+                self.anno_files = [os.path.join(A, path)]
+            else:
+                self.anno_files =  [os.path.join(self.root, path) for path in SPLIT_FILES[split]]
 
         if root is None:
             raise Exception('Please specify the root directory')
