@@ -107,6 +107,7 @@ class LaneEval(object):
             fn += n
         num = len(gts)
         # the first return parameter is the default ranking parameter
+        print(accuracy / num)
         return json.dumps([{
             'name': 'Accuracy',
             'value': accuracy / num,
