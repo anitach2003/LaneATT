@@ -291,7 +291,7 @@ class LaneATT(nn.Module):
         attention = F.softmax(theta_phi, dim=-1)  # (B, H*W, H*W)
         weighted_g = torch.bmm(g, attention.permute(0, 2, 1))  # (B, C/2, H*W)
         weighted_g = weighted_g.view(batch_size, -1, height, width)  # (B, C/2, H, W)
-        batch_features = self.out_conv(weighted_g) + x
+        batch_features = self.out_conv(weighted_g) + batch_features
         batch_features=self.conv1(batch_features)
         
         batch_anchor_features = self.cut_anchor_features(batch_features)
