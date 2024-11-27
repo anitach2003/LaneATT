@@ -181,21 +181,21 @@ class TransformerModel(nn.Module):
 
         # Average across heads to get to (batch_size, seq_length, seq_length)
         final_attention_weights = final_attention_weights.mean(dim=1)  # Shape: (batch_size, seq_length, seq_length)
-      #  batch_size, seq_length, _ = final_attention_weights.shape
+        batch_size, seq_length, _ = final_attention_weights.shape
 
         # 1. Set diagonal elements to 0
-     #   for i in range(batch_size):
-      #      final_attention_weights[i].fill_diagonal_(0)
+        for i in range(batch_size):
+            final_attention_weights[i].fill_diagonal_(0)
 
         # 2. Normalize each row to ensure the sum is 1
         # Calculate row sums excluding the diagonal (set diagonal to 0 before)
-      #  row_sums = final_attention_weights.sum(dim=2, keepdim=True)  # Shape: (batch_size, seq_length, 1)
+        row_sums = final_attention_weights.sum(dim=2, keepdim=True)  # Shape: (batch_size, seq_length, 1)
 
         # Avoid division by zero: add a small epsilon to the sum to prevent NaNs if the row is all zero
-       # row_sums = row_sums + 1e-8  # Add a small value to avoid division by zero
+        row_sums = row_sums + 1e-8  # Add a small value to avoid division by zero
 
         # Normalize the rows: divide by the sum of each row
-        #final_attention_weights = final_attention_weights / row_sums
+        final_attention_weights = final_attention_weights / row_sums
         return final_attention_weights
 class LaneATT(nn.Module):
     def __init__(self,
