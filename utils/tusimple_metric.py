@@ -78,6 +78,7 @@ class LaneEval(object):
     def bench_one_submit(pred_file, gt_file):
         try:
             json_pred = [json.loads(line) for line in open(pred_file).readlines()]
+        print(json_pred)
         except BaseException as e:
             raise Exception('Fail to load json file of the prediction.')
         json_gt = [json.loads(line) for line in open(gt_file).readlines()]
