@@ -286,9 +286,9 @@ class LaneATT(nn.Module):
         x_r = self.conv_r2(x_r)
         batch_features = x_l + x_r
         x_res = batch_features
-        x_res = self.conv1(x_res)
+        x_res = self.conv11(x_res)
         x_res = self.relu(x_res)
-        x_res = self.conv2(x_res)
+        x_res = self.conv22(x_res)
         batch_features = batch_features + x_res
 
         # Use cross-attention with feature map as query and edge map as key/value
