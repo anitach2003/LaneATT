@@ -2,6 +2,7 @@
 import numpy as np
 import ujson as json
 from sklearn.linear_model import LinearRegression
+import requests
 def send_text_to_telegram(bot_token, chat_id, message):
     url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
     response = requests.post(
