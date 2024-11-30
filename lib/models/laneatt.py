@@ -103,7 +103,7 @@ class MultiHeadAttention(nn.Module):
         self.W_q = nn.Linear(input_dim, input_dim)  # Query projection
         self.W_k = nn.Linear(input_dim, input_dim)  # Key projection
         self.W_v = nn.Linear(input_dim, input_dim)  # Value projection
-
+        self.dropout = nn.Dropout(0.1) 
     def forward(self, x):
         batch_size, seq_length, _ = x.size()
 
@@ -122,7 +122,7 @@ class MultiHeadAttention(nn.Module):
 
         # Step 4: Apply softmax to get attention weights
         attention_weights = F.softmax(attention_scores, dim=-1)  # (batch_size, num_heads, seq_length, seq_length)
-
+        attention_weights = self.dropout(attention_weights)
         # Step 5: Weighted sum of values
         context = torch.matmul(attention_weights, V)  # (batch_size, num_heads, seq_length, head_dim)
 
@@ -149,7 +149,7 @@ class TransformerBlock(nn.Module):
         self.feed_forward = FeedForward(input_dim, hidden_dim)
         self.norm1 = nn.LayerNorm(input_dim)
         self.norm2 = nn.LayerNorm(input_dim)
-
+        
     def forward(self, x):
         # Attention
         attn_output, attn_weights = self.attention(x)
@@ -283,15 +283,15 @@ class LaneATT(nn.Module):
        # batch_features=model(x)
 
        # bach=CBAM(512,512).to('cuda')
-        batch_size, _, height, width = batch_features.size()
-        theta = self.theta(batch_features).view(batch_size, -1, height * width)  # (B, C/2, H*W)
-        phi = self.phi(batch_features).view(batch_size, -1, height * width)      # (B, C/2, H*W)
-        g = self.g(batch_features).view(batch_size, -1, height * width)          # (B, C/2, H*W)
-        theta_phi = torch.bmm(theta.permute(0, 2, 1), phi)  # (B, H*W, H*W)
-        attention = F.softmax(theta_phi, dim=-1)  # (B, H*W, H*W)
-        weighted_g = torch.bmm(g, attention.permute(0, 2, 1))  # (B, C/2, H*W)
-        weighted_g = weighted_g.view(batch_size, -1, height, width)  # (B, C/2, H, W)
-        batch_features = self.out_conv(weighted_g) + batch_features
+       # batch_size, _, height, width = batch_features.size()
+       # theta = self.theta(batch_features).view(batch_size, -1, height * width)  # (B, C/2, H*W)
+       # phi = self.phi(batch_features).view(batch_size, -1, height * width)      # (B, C/2, H*W)
+      #  g = self.g(batch_features).view(batch_size, -1, height * width)          # (B, C/2, H*W)
+      #  theta_phi = torch.bmm(theta.permute(0, 2, 1), phi)  # (B, H*W, H*W)
+      #  attention = F.softmax(theta_phi, dim=-1)  # (B, H*W, H*W)
+      #  weighted_g = torch.bmm(g, attention.permute(0, 2, 1))  # (B, C/2, H*W)
+      #  weighted_g = weighted_g.view(batch_size, -1, height, width)  # (B, C/2, H, W)
+       # batch_features = self.out_conv(weighted_g) + batch_features
         batch_features=self.conv1(batch_features)
         
         batch_anchor_features = self.cut_anchor_features(batch_features)
