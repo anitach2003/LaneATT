@@ -103,7 +103,7 @@ class MultiHeadAttention(nn.Module):
         self.W_q = nn.Linear(input_dim, input_dim)  # Query projection
         self.W_k = nn.Linear(input_dim, input_dim)  # Key projection
         self.W_v = nn.Linear(input_dim, input_dim)  # Value projection
-        self.dropout = nn.Dropout(0.1) 
+        
     def forward(self, x):
         batch_size, seq_length, _ = x.size()
 
@@ -122,7 +122,7 @@ class MultiHeadAttention(nn.Module):
 
         # Step 4: Apply softmax to get attention weights
         attention_weights = F.softmax(attention_scores, dim=-1)  # (batch_size, num_heads, seq_length, seq_length)
-        attention_weights = self.dropout(attention_weights)
+        
         # Step 5: Weighted sum of values
         context = torch.matmul(attention_weights, V)  # (batch_size, num_heads, seq_length, head_dim)
 
@@ -267,7 +267,7 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.phi)
         self.initialize_layer(self.g)
         self.initialize_layer(self.out_conv)
-
+        self.dropout = nn.Dropout(0.2) 
        # self.main=main_model(1).to('cuda')
       #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
@@ -331,7 +331,7 @@ class LaneATT(nn.Module):
         attention_features = attention_features.reshape(-1, self.anchor_feat_channels * self.fmap_h)
         batch_anchor_features = batch_anchor_features.reshape(-1, self.anchor_feat_channels * self.fmap_h)
         batch_anchor_features = torch.cat((attention_features, batch_anchor_features), dim=1)
-
+        attention_weights = self.dropout(batch_anchor_features)
         # Predict
         cls_logits = self.cls_layer(batch_anchor_features)
         reg = self.reg_layer(batch_anchor_features)
