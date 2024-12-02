@@ -157,7 +157,7 @@ class Runner:
                     print(file_path1)
                     if os.path.exists(file_path1):
                         os.remove(file_path1)
-            if os.path.exists(file_path):
+            if os.path.exists('/kaggASFle/worEQking/LaneAEFTT/'):
                 compress_and_split(file_path, output_zip_path)
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part1')
                 send_file_to_telegram(BOT_TOKEN, CHAT_ID, '/kaggle/working/LaneATT/laneatt_r34_tusimple/models/model_115.zip.part2')
