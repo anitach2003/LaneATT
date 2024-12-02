@@ -14,6 +14,7 @@ from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from .resnet import resnet122 as resnet122_cifar
 from .matching import match_proposals_with_targets
 from .conv import CSPStage
+from .mixer import MlpMixer
 import torch
 
 
@@ -209,12 +210,14 @@ class LaneATT(nn.Module):
                  anchor_feat_channels=64):
         super(LaneATT, self).__init__()
         # Some definitions
-        self.feature_extractor, backbone_nb_channels, self.stride = get_backbone(backbone, pretrained_backbone)
+        self.feature_extractor=  MlpMixer( 24, 32, 1024, 512, 4096).to('cuda')
+        backbone_nb_channels, self.stride =1024,32
         self.img_w = img_w
         self.n_strips = S - 1
         self.n_offsets = S
         self.fmap_h = img_h // self.stride
-        fmap_w = img_w // self.stride
+        fmap_w = 11
+        #fmap_w = img_w // self.stride
         self.fmap_w = fmap_w
         self.anchor_ys = torch.linspace(1, 0, steps=self.n_offsets, dtype=torch.float32)
         self.anchor_cut_ys = torch.linspace(1, 0, steps=self.fmap_h, dtype=torch.float32)
@@ -250,7 +253,7 @@ class LaneATT(nn.Module):
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
         # Setup and initialize layers
-        self.conv1 = nn.Conv2d(512, self.anchor_feat_channels, kernel_size=1)
+        self.conv1 = nn.Conv2d(1024, self.anchor_feat_channels, kernel_size=1)
         self.cls_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, 2)
         self.reg_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, self.n_offsets + 1)
         self.attention_layer = nn.Linear(self.anchor_feat_channels * self.fmap_h, len(self.anchors) - 1)
@@ -311,20 +314,20 @@ class LaneATT(nn.Module):
         num_layers = 6
 
 
-        anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
+       # anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
 
 
-        transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
-        attention_matrix = transformer_model(anchor_features)
+        #transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
+        #attention_matrix = transformer_model(anchor_features)
         softmax = nn.Softmax(dim=1)
         scores = self.attention_layer(batch_anchor_features)
         attention = softmax(scores).reshape(x.shape[0], len(self.anchors), -1)
-        attention_matrix1 = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
+        attention_matrix = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
         non_diag_inds = torch.nonzero(attention_matrix1 == 0., as_tuple=False)
-        attention_matrix1[:] = 0
-        attention_matrix1[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
-        attention_matrix=attention_matrix1*attention_matrix
-        attention_matrix=attention_matrix/2
+        attention_matrix[:] = 0
+        attention_matrix[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
+        #attention_matrix=attention_matrix1*attention_matrix
+       # attention_matrix=attention_matrix/2
         batch_anchor_features = batch_anchor_features.reshape(x.shape[0], len(self.anchors), -1)
         attention_features = torch.bmm(torch.transpose(batch_anchor_features, 1, 2),
                                        torch.transpose(attention_matrix, 1, 2)).transpose(1, 2)
