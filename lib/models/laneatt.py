@@ -323,7 +323,7 @@ class LaneATT(nn.Module):
         scores = self.attention_layer(batch_anchor_features)
         attention = softmax(scores).reshape(x.shape[0], len(self.anchors), -1)
         attention_matrix = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
-        non_diag_inds = torch.nonzero(attention_matrix1 == 0., as_tuple=False)
+        non_diag_inds = torch.nonzero(attention_matrix == 0., as_tuple=False)
         attention_matrix[:] = 0
         attention_matrix[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
         #attention_matrix=attention_matrix1*attention_matrix
