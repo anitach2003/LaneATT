@@ -150,8 +150,8 @@ class Runner:
                 pbar.set_postfix(ordered_dict=postfix_dict)
             self.exp.epoch_end_callback(epoch, max_epochs, model, optimizer, scheduler)
             send_text_to_telegram(BOT_TOKEN, CHAT_ID, str(epoch))
-            if os.path.exists(directory):
-                for i in range(1, 51):
+            if os.path.exists(directory1):
+                for i in range(1, 99):
                     filename = f"model_{i:04d}.pt"
                     file_path1 = os.path.join(directory1, filename)
                     print(file_path1)
