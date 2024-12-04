@@ -13,3 +13,4 @@ PyYAML
 scikit_learn
 tensorboard
 gdown
+bottleneck_transformer_pytorch
