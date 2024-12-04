@@ -16,7 +16,7 @@ from .matching import match_proposals_with_targets
 from .conv import CSPStage
 from .mixer import MlpMixer
 import torch
-
+from bottleneck_transformer_pytorch import BottleStack
 
 def line_iou(pred, target, img_w, length=15, aligned=True):
     '''
@@ -210,13 +210,12 @@ class LaneATT(nn.Module):
                  anchor_feat_channels=64):
         super(LaneATT, self).__init__()
         # Some definitions
-        self.feature_extractor=  MlpMixer( 24, 32, 1024, 512, 4096).to('cuda')
-        backbone_nb_channels, self.stride =1024,32
+        self.feature_extractor, backbone_nb_channels, self.stride = get_backbone(backbone, pretrained_backbone)
         self.img_w = img_w
         self.n_strips = S - 1
         self.n_offsets = S
         self.fmap_h = img_h // self.stride
-        fmap_w = 11
+        fmap_w = img_w // self.stride
         #fmap_w = img_w // self.stride
         self.fmap_w = fmap_w
         self.anchor_ys = torch.linspace(1, 0, steps=self.n_offsets, dtype=torch.float32)
@@ -271,12 +270,21 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.g)
         self.initialize_layer(self.out_conv)
         self.dropout = nn.Dropout(0.2) 
-       # self.main=main_model(1).to('cuda')
-      #  self.resnet=resnet_fpn_backbone(backbone_name='resnet18', pretrained=True).to('cuda')
+        self.B1= BottleStack(
+    dim = 512,              # channels in
+    fmap_size = (12, 20),         # feature map size
+    dim_out = 512,         # channels out
+    proj_factor = 4,        # projection factor
+    downsample = False,      # downsample on first layer or not
+    heads = 12,              # number of heads
+    dim_head = 512,         # dimension per head, defaults to 128
+    rel_pos_emb = False,    # use relative positional embedding - uses absolute if False
+    activation = nn.ReLU() )
+        self.initialize_layer(self.B1)
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
         batch_features = self.feature_extractor(x)
-
+        batch_features = self.B1(batch_features)
 
         # Use cross-attention with feature map as query and edge map as key/value
 
