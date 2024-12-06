@@ -241,15 +241,6 @@ class LaneATT(nn.Module):
             ind = torch.argsort(anchors_mask, descending=True)[:topk_anchors]
             self.anchors = self.anchors[ind]
             self.anchors_cut = self.anchors_cut[ind]
-            
-        if anchors_freq_path is not None:
-            anchors_mask = torch.load('/kaggle/working/LaneATT/data/tusimple_anchors_freq.pt').cpu()
-            assert topk_anchors is not None
-            ind = torch.argsort(anchors_mask, descending=True)[:topk_anchors]
-            self.anchorsc = self.anchorsc[ind]
-            self.anchorsc_cut = self.anchorsc_cut[ind]
-        self.anchors=torch.cat([self.anchors,self.anchorsc])
-        self.anchors_cut=torch.cat([self.anchors_cut,self.anchorsc_cut])
         self.cut_zs, self.cut_ys, self.cut_xs, self.invalid_mask = self.compute_anchor_cut_indices(
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
@@ -324,18 +315,18 @@ class LaneATT(nn.Module):
         num_layers = 6
 
 
-       # anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
+        anchor_features = batch_anchor_features.view(batch_size, num_proposals, d_k)
 
 
-        #transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
-        #attention_matrix = transformer_model(anchor_features)
-        softmax = nn.Softmax(dim=1)
-        scores = self.attention_layer(batch_anchor_features)
-        attention = softmax(scores).reshape(x.shape[0], len(self.anchors), -1)
-        attention_matrix = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
-        non_diag_inds = torch.nonzero(attention_matrix == 0., as_tuple=False)
-        attention_matrix[:] = 0
-        attention_matrix[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
+        transformer_model = TransformerModel(input_dim, num_heads, hidden_dim, num_layers).to('cuda')
+        attention_matrix = transformer_model(anchor_features)
+       # softmax = nn.Softmax(dim=1)
+       # scores = self.attention_layer(batch_anchor_features)
+       # attention = softmax(scores).reshape(x.shape[0], len(self.anchors), -1)
+       # attention_matrix = torch.eye(attention.shape[1], device=x.device).repeat(x.shape[0], 1, 1)
+       # non_diag_inds = torch.nonzero(attention_matrix == 0., as_tuple=False)
+       # attention_matrix[:] = 0
+      #  attention_matrix[non_diag_inds[:, 0], non_diag_inds[:, 1], non_diag_inds[:, 2]] = attention.flatten()
         #attention_matrix=attention_matrix1*attention_matrix
        # attention_matrix=attention_matrix/2
         batch_anchor_features = batch_anchor_features.reshape(x.shape[0], len(self.anchors), -1)
