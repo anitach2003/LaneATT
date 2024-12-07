@@ -22,7 +22,7 @@ BOT_TOKEN = '7651391280:AAEqT4XRPZZTQNjyQvx_2FzRUNKDdc387BU'
 CHAT_ID = '-134642039'
 class LaneEval(object):
     lr = LinearRegression()
-    pixel_thresh = 20
+    pixel_thresh = 25
     pt_thresh = 0.85
 
     @staticmethod
