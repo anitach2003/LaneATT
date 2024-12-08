@@ -245,11 +245,12 @@ class LaneATT(nn.Module):
             self.anchor_feat_channels, fmap_w, self.fmap_h)
 
         # Setup and initialize layers
+        self.conv2 = nn.Conv2d(1024, self.anchor_feat_channels, kernel_size=1)
         self.conv1 = nn.Conv2d(512, self.anchor_feat_channels, kernel_size=1)
         self.cls_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, 2)
         self.reg_layer = nn.Linear(2 * self.anchor_feat_channels * self.fmap_h, self.n_offsets + 1)
         self.attention_layer = nn.Linear(self.anchor_feat_channels * self.fmap_h, len(self.anchors) - 1)
-
+        self.initialize_layer(self.conv2)
         self.initialize_layer(self.attention_layer)
         self.initialize_layer(self.conv1)
         self.initialize_layer(self.cls_layer)
@@ -274,11 +275,19 @@ class LaneATT(nn.Module):
     rel_pos_emb = False,    # use relative positional embedding - uses absolute if False
     activation = nn.ReLU() )
         self.initialize_layer(self.B1)
+        self.num_groups = 4
+        self.channels_per_group = 512 // num_groups
+        self.group_convs = nn.ModuleList([
+            nn.Conv2d(self.channels_per_group, self.channels_per_group // num_groups, kernel_size=1, stride=1)
+            for _ in range(num_groups)
+        ])
+        self.final_conv = nn.Conv2d((self.channels_per_group // num_groups) * num_groups, 512, kernel_size=1)
+        self.initialize_layer(self.final_conv)
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
         batch_features = self.feature_extractor(x)
         batch_features = self.B1(batch_features)
-
+    
         # Use cross-attention with feature map as query and edge map as key/value
 
        # A=CSPStage(512,64,4,spp=True).to('cuda')
@@ -296,8 +305,13 @@ class LaneATT(nn.Module):
       #  weighted_g = torch.bmm(g, attention.permute(0, 2, 1))  # (B, C/2, H*W)
       #  weighted_g = weighted_g.view(batch_size, -1, height, width)  # (B, C/2, H, W)
        # batch_features = self.out_conv(weighted_g) + batch_features
-        batch_features=self.conv1(batch_features)
-        
+        #batch_features=self.conv1(batch_features)
+        groups = torch.split(x, self.channels_per_group, dim=1)
+        processed_groups = [conv(group) for group, conv in zip(groups, self.group_convs)]
+        aggregated = torch.cat(processed_groups, dim=1)
+        output = self.final_conv(aggregated)
+        batch_features = torch.cat([output,batch_features] ,dim=1)
+        batch_features=self.conv2(batch_features)
         batch_anchor_features = self.cut_anchor_features(batch_features)
 
         # Join proposals from all images into a single proposals features batch
