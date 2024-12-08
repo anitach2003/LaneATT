@@ -276,12 +276,12 @@ class LaneATT(nn.Module):
     activation = nn.ReLU() )
         self.initialize_layer(self.B1)
         self.num_groups = 4
-        self.channels_per_group = 512 // num_groups
+        self.channels_per_group = 512 // 4
         self.group_convs = nn.ModuleList([
-            nn.Conv2d(self.channels_per_group, self.channels_per_group // num_groups, kernel_size=1, stride=1)
+            nn.Conv2d(self.channels_per_group, self.channels_per_group // 4, kernel_size=1, stride=1)
             for _ in range(num_groups)
         ])
-        self.final_conv = nn.Conv2d((self.channels_per_group // num_groups) * num_groups, 512, kernel_size=1)
+        self.final_conv = nn.Conv2d((self.channels_per_group // 4) * 4, 512, kernel_size=1)
         self.initialize_layer(self.final_conv)
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
