@@ -285,8 +285,8 @@ class LaneATT(nn.Module):
         self.initialize_layer(self.final_conv)
     def forward(self, x, conf_threshold=None, nms_thres=0, nms_topk=3000):
         
-        batch_features = self.feature_extractor(x)
-        batch_features = self.B1(batch_features)
+        batch_features1 = self.feature_extractor(x)
+        batch_features = self.B1(batch_features1)
     
         # Use cross-attention with feature map as query and edge map as key/value
 
@@ -306,7 +306,7 @@ class LaneATT(nn.Module):
       #  weighted_g = weighted_g.view(batch_size, -1, height, width)  # (B, C/2, H, W)
        # batch_features = self.out_conv(weighted_g) + batch_features
         #batch_features=self.conv1(batch_features)
-        groups = torch.split(x, self.channels_per_group, dim=1)
+        groups = torch.split(batch_features1, self.channels_per_group, dim=1)
         processed_groups = [conv(group) for group, conv in zip(groups, self.group_convs)]
         aggregated = torch.cat(processed_groups, dim=1)
         output = self.final_conv(aggregated)
