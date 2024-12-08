@@ -279,7 +279,7 @@ class LaneATT(nn.Module):
         self.channels_per_group = 512 // 4
         self.group_convs = nn.ModuleList([
             nn.Conv2d(self.channels_per_group, self.channels_per_group // 4, kernel_size=1, stride=1)
-            for _ in range(num_groups)
+            for _ in range(4)
         ])
         self.final_conv = nn.Conv2d((self.channels_per_group // 4) * 4, 512, kernel_size=1)
         self.initialize_layer(self.final_conv)
